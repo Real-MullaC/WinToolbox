@@ -1,0 +1,24 @@
+[
+    {
+      "name": "Visual Studio Code",
+      "wingetId": "Microsoft.VisualStudioCode",
+      "chocoId": "visualstudiocode",
+      "description": "Free. Built on open source. Runs everywhere.",
+      "link": "https://code.visualstudio.com/"
+    },
+    {
+      "name": "Google Chrome",
+      "wingetId": "Google.Chrome",
+      "chocoId": "googlechrome",
+      "description": "A fast, secure, and free web browser built for the modern web.",
+      "link": "https://www.google.com/chrome/"
+    },
+    {
+      "name": "7-Zip",
+      "wingetId": "7zip.7zip",
+      "chocoId": "7zip",
+      "description": "A file archiver with a high compression ratio.",
+      "link": "https://www.7-zip.org/"
+    }
+  ]
+  
