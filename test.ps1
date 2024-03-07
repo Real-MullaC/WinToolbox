@@ -40,7 +40,7 @@ if ($theme.AppsUseLightTheme -eq 1) {
     $accentColor = "Blue"
 } else {
     $isLightTheme = $false
-    $backgroundColor = "#1e1e1e" # Dark mode background color, using a common dark theme color
+    $backgroundColor = "#2D2D30" # Dark mode background color, using a common dark theme color
     $textColor = "White" # Dark mode text color
     $accentColor = "Blue"
 }
@@ -48,35 +48,46 @@ if ($theme.AppsUseLightTheme -eq 1) {
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationFramework
 
-# WPF GUI Design
+
+# WPF GUI Design in XAML
 [xml]$xaml = @"
-<Window
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="PowerShell Remote Manager" Height="450" Width="800">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PowerShell Remote Manager" Height="450" Width="800">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
         
-        <StackPanel Grid.Column="0" Margin="10">
-            <TextBox Name="txtHostname" />
-            <Button Name="btnAdd" Content="Add" />
-            <Button Name="btnRemove" Content="Remove" />
-            <ListBox Name="listDevices" />
-        </StackPanel>
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" /> <!-- For static controls: TextBox and Buttons -->
+                <RowDefinition Height="*" /> <!-- For ScrollViewer, will take up remaining space -->
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="10">
+                <TextBox Name="txtHostname" />
+                <Button Name="btnAdd" Content="Add" />
+                <Button Name="btnRemove" Content="Remove" />
+            </StackPanel>
+
+            <!-- ScrollViewer in a separate row, taking up the remaining space -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
+                <StackPanel Name="panelDevices" />
+            </ScrollViewer>
+        </Grid>
+
+
 
         <TabControl Grid.Column="1" Margin="10">
             <TabItem Header="Options">
                 <StackPanel>
                     <CheckBox Name="chkOption1" Content="Option 1" />
                     <CheckBox Name="chkOption2" Content="Option 2" />
-                    <!-- Add more options as needed -->
                     <Button Name="btnRun" Content="Run" />
                 </StackPanel>
             </TabItem>
-            <!-- Add more tabs if needed -->
         </TabControl>
     </Grid>
 </Window>
@@ -86,78 +97,92 @@ Add-Type -AssemblyName PresentationFramework
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
-
-# Set the background color of the window
-$window.Background = [System.Windows.Media.Brushes]::$backgroundColor  # Example, replace with actual logic to use theme color
-
-# For other elements, access them by name and set their properties similarly
-$txtHostname.Background = [System.Windows.Media.Brushes]::White  # Example
-
-# Access the controls
+# Access controls from the parsed XAML
 $txtHostname = $window.FindName("txtHostname")
 $btnAdd = $window.FindName("btnAdd")
 $btnRemove = $window.FindName("btnRemove")
-$listDevices = $window.FindName("listDevices")
-$chkOption1 = $window.FindName("chkOption1")
-$chkOption2 = $window.FindName("chkOption2")
+$panelDevices = $window.FindName("panelDevices")
 $btnRun = $window.FindName("btnRun")
+
+
+
+
+# Set window background
+$window.Background = [System.Windows.Media.Brushes]::$backgroundColor
+
+# Update controls' colors
+$txtHostname.Background = [System.Windows.Media.Brushes]::$backgroundColor
+$txtHostname.Foreground = [System.Windows.Media.Brushes]::$textColor
+
+$btnAdd.Background = [System.Windows.Media.Brushes]::$accentColor
+$btnAdd.Foreground = [System.Windows.Media.Brushes]::$textColor
+
+$btnRemove.Background = [System.Windows.Media.Brushes]::$accentColor
+$btnRemove.Foreground = [System.Windows.Media.Brushes]::$textColor
+
+$listDevices.Background = [System.Windows.Media.Brushes]::$backgroundColor
+$listDevices.Foreground = [System.Windows.Media.Brushes]::$textColor
+
+$chkOption1.Foreground = [System.Windows.Media.Brushes]::$textColor
+$chkOption2.Foreground = [System.Windows.Media.Brushes]::$textColor
+
+$btnRun.Background = [System.Windows.Media.Brushes]::$accentColor
+$btnRun.Foreground = [System.Windows.Media.Brushes]::$textColor
+
+
+
+
+
+
+
+
+# Device management functions
+function Add-Device {
+    $hostname = $txtHostname.Text
+    if (-not $hostname) { return }
+    if (-not (Test-Connection $hostname -Quiet -Count 1)) { return }
+
+    $checkbox = New-Object System.Windows.Controls.CheckBox
+    $checkbox.Content = $hostname
+    $checkbox.Margin = New-Object System.Windows.Thickness(5)
+    $panelDevices.Children.Add($checkbox)
+}
+
+function Remove-Device {
+    $selectedDevices = $panelDevices.Children | Where-Object { $_.IsChecked -eq $true }
+    foreach ($device in $selectedDevices) {
+        $panelDevices.Children.Remove($device)
+    }
+}
+
+# Event handlers
+$btnAdd.Add_Click({ Add-Device })
+$btnRemove.Add_Click({ Remove-Device })
+$btnRun.Add_Click({
+    $selectedDevices = @()
+    foreach ($deviceCheckBox in $panelDevices.Children) {
+        if ($deviceCheckBox.IsChecked -eq $true) {
+            $selectedDevices += $deviceCheckBox.Content
+        }
+    }
+    foreach ($hostname in $selectedDevices) {
+        Write-Host "Selected device: $hostname"
+        # Implement the desired actions here
+    }
+    [System.Windows.MessageBox]::Show("Actions have been performed on the selected devices.")
+})
+
+
+
 
 $listDevices.Items.Add($env:COMPUTERNAME)
 Write-Host "Connected with: {$env:COMPUTERNAME}"
 
-# Device Management Functions
-function Add-Device {
-    $hostname = $txtHostname.Text
-    if (-not $hostname) {
-        #[System.Windows.MessageBox]::Show("Please enter a hostname.")
-        return
-    }
-
-    if ($hostname = $env:COMPUTERNAME) {
-        #[System.Windows.MessageBox]::Show("Please enter a hostname.")
-        return
-    }
-
-    # Check if the hostname is reachable
-    if (-not (Test-Connection $hostname -Quiet -Count 1)) {
-        [System.Windows.MessageBox]::Show("Hostname is not reachable.")
-        return
-    }
 
 
-    $portCheck = Test-NetConnection -ComputerName $hostname -Port 8080
-    if (-not $portCheck.TcpTestSucceeded) {
-        [System.Windows.MessageBox]::Show("run start.ps1 first")
-        return
-    }
 
-    # Add the device to the list if all checks pass
-    $listDevices.Items.Add($hostname)
-}
 
-function Remove-Device {
-    if ($listDevices.SelectedItem -ne $null) {
-        $listDevices.Items.Remove($listDevices.SelectedItem)
-    } else {
-        [System.Windows.MessageBox]::Show("Please select a device to remove.")
-    }
-}
 
-# Event Handlers
-$btnAdd.Add_Click({
-    Add-Device
-})
-
-$btnRemove.Add_Click({
-    Remove-Device
-})
-
-$btnRun.Add_Click({
-    # Iterate through the checked devices and options to perform selected actions
-    # Implement the logic based on selected options and devices
-    [System.Windows.MessageBox]::Show("Run action not implemented yet.")
-})
 
 # Show the GUI
 $window.ShowDialog() | Out-Null
-
