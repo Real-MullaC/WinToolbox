@@ -2,11 +2,7 @@
 
 This utility is a Toolbox that helps me every day. I Download my everyday applications and tweak the most important settings on my windows machines using ShellUtil.
 
-## Usage
-
-Shellutil has to run with administrative privileges, to achieve this, open PowerShell or Windows Terminal as an administrator and run the launch-command.
-
-### Launch Command
+## Launch Command
 
 #### Simple way
 

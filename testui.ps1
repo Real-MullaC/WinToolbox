@@ -1,35 +1,93 @@
+# Check if the current instance is running as administrator
+If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    # Relaunch the script with administrator rights
+    $arguments = "& '" + $myinvocation.mycommand.definition + "'"
+    Start-Process powershell -ArgumentList $arguments -Verb RunAs
+    exit
+}
+
+
+Write-Host ""
+Write-Host "MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD        "
+Write-Host "M:::::::M             M:::::::M    D:::::::::::::DDD     "
+Write-Host "M::::::::M           M::::::::M    D::::::::::::::::DD   "
+Write-Host "M:::::::::M         M:::::::::M    DDD:::::DDDDD::::::D  "
+Write-Host "M::::::::::M       M::::::::::M       D:::::D   D::::::D "
+Write-Host "M:::::::::::M     M:::::::::::M       D:::::D    D::::::D"
+Write-Host "M:::::::M::::M   M::::M:::::::M       D:::::D     D::::::D"
+Write-Host "M::::::M M::::M M::::M M::::::M       D:::::D     D::::::D"
+Write-Host "M::::::M  M::::M::::M  M::::::M       D:::::D     D::::::D"
+Write-Host "M::::::M   M:::::::M   M::::::M       D:::::D     D::::::D"
+Write-Host "M::::::M    M:::::M    M::::::M       D:::::D    D::::::D"
+Write-Host "M::::::M     MMMMM     M::::::M       D:::::D   D::::::D "
+Write-Host "M::::::M               M::::::M    DDD:::::DDDDD::::::D  "
+Write-Host "M::::::M               M::::::M    D::::::::::::::::DD   "
+Write-Host "M::::::M               M::::::M    D:::::::::::::DDD     "
+Write-Host "MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD        "
+
+Write-Host ""
+Write-Host "========Mattia Diana========"
+Write-Host "=====Powershell Toolbox====="
+
+
+
+# Check the system's theme from the registry
+$theme = Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'AppsUseLightTheme'
+if ($theme.AppsUseLightTheme -eq 1) {
+    $isLightTheme = $true
+    $backgroundColor = "White" # Light mode background color
+    $textColor = "Black" # Dark mode text color
+    $accentColor = "Blue"
+} else {
+    $isLightTheme = $false
+    $backgroundColor = "#2D2D30" # Dark mode background color, using a common dark theme color
+    $textColor = "White" # Dark mode text color
+    $accentColor = "Blue"
+}
+
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationFramework
 
-# WPF GUI Design
+
+# WPF GUI Design in XAML
 [xml]$xaml = @"
-<Window
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="PowerShell Remote Manager" Height="450" Width="800">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PowerShell Remote Manager" Height="450" Width="800">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
         
-        <StackPanel Grid.Column="0" Margin="10">
-            <TextBox Name="txtHostname" />
-            <Button Name="btnAdd" Content="Add" />
-            <Button Name="btnRemove" Content="Remove" />
-            <ListBox Name="listDevices" />
-        </StackPanel>
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" /> <!-- For static controls: TextBox and Buttons -->
+                <RowDefinition Height="*" /> <!-- For ScrollViewer, will take up remaining space -->
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="10">
+                <TextBox Name="txtHostname" />
+                <Button Name="btnAdd" Content="Add" />
+                <Button Name="btnRemove" Content="Remove" />
+            </StackPanel>
+
+            <!-- ScrollViewer in a separate row, taking up the remaining space -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
+                <StackPanel Name="panelDevices" />
+            </ScrollViewer>
+        </Grid>
+
+
 
         <TabControl Grid.Column="1" Margin="10">
             <TabItem Header="Options">
                 <StackPanel>
                     <CheckBox Name="chkOption1" Content="Option 1" />
                     <CheckBox Name="chkOption2" Content="Option 2" />
-                    <!-- Add more options as needed -->
                     <Button Name="btnRun" Content="Run" />
                 </StackPanel>
             </TabItem>
-            <!-- Add more tabs if needed -->
         </TabControl>
     </Grid>
 </Window>
@@ -39,67 +97,61 @@ Add-Type -AssemblyName PresentationFramework
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
-# Access the controls
+# Access controls from the parsed XAML
 $txtHostname = $window.FindName("txtHostname")
 $btnAdd = $window.FindName("btnAdd")
 $btnRemove = $window.FindName("btnRemove")
-$listDevices = $window.FindName("listDevices")
-$chkOption1 = $window.FindName("chkOption1")
-$chkOption2 = $window.FindName("chkOption2")
+$panelDevices = $window.FindName("panelDevices")
 $btnRun = $window.FindName("btnRun")
 
-# Device Management Functions
+
+# Device management functions
 function Add-Device {
     $hostname = $txtHostname.Text
-    if (-not $hostname) {
-        [System.Windows.MessageBox]::Show("Please enter a hostname.")
-        return
-    }
+    if (-not $hostname) { return }
+    if (-not (Test-Connection $hostname -Quiet -Count 1)) { return }
 
-    # Check if the hostname is reachable
-    if (-not (Test-Connection $hostname -Quiet -Count 1)) {
-        [System.Windows.MessageBox]::Show("Hostname is not reachable.")
-        return
-    }
-
-    # Check if the device is running Windows 10/11
-    try {
-        $os = Get-WmiObject -Class Win32_OperatingSystem -ComputerName $hostname | Select-Object -ExpandProperty Caption
-        if ($os -notlike "*Windows 10*" -and $os -notlike "*Windows 11*") {
-            [System.Windows.MessageBox]::Show("The device is not running Windows 10/11.")
-            return
-        }
-    } catch {
-        [System.Windows.MessageBox]::Show("Failed to retrieve OS information. Make sure you have the necessary permissions.")
-        return
-    }
-
-    # Add the device to the list if all checks pass
-    $listDevices.Items.Add($hostname)
+    $checkbox = New-Object System.Windows.Controls.CheckBox
+    $checkbox.Content = $hostname
+    $checkbox.Margin = New-Object System.Windows.Thickness(5)
+    $panelDevices.Children.Add($checkbox)
 }
 
 function Remove-Device {
-    if ($listDevices.SelectedItem -ne $null) {
-        $listDevices.Items.Remove($listDevices.SelectedItem)
-    } else {
-        [System.Windows.MessageBox]::Show("Please select a device to remove.")
+    $selectedDevices = $panelDevices.Children | Where-Object { $_.IsChecked -eq $true }
+    foreach ($device in $selectedDevices) {
+        $panelDevices.Children.Remove($device)
     }
 }
 
-# Event Handlers
-$btnAdd.Add_Click({
-    Add-Device
-})
-
-$btnRemove.Add_Click({
-    Remove-Device
-})
-
+# Event handlers
+$btnAdd.Add_Click({ Add-Device })
+$btnRemove.Add_Click({ Remove-Device })
 $btnRun.Add_Click({
-    # Iterate through the checked devices and options to perform selected actions
-    # Implement the logic based on selected options and devices
-    [System.Windows.MessageBox]::Show("Run action not implemented yet.")
+    $selectedDevices = @()
+    foreach ($deviceCheckBox in $panelDevices.Children) {
+        if ($deviceCheckBox.IsChecked -eq $true) {
+            $selectedDevices += $deviceCheckBox.Content
+        }
+    }
+    foreach ($hostname in $selectedDevices) {
+        Write-Host "Selected device: $hostname"
+        # Implement the desired actions here
+    }
+    [System.Windows.MessageBox]::Show("Actions have been performed on the selected devices.")
 })
+
+
+
+
+$listDevices.Items.Add($env:COMPUTERNAME)
+Write-Host "Connected with: {$env:COMPUTERNAME}"
+
+
+
+
+
+
 
 # Show the GUI
 $window.ShowDialog() | Out-Null

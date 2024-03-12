@@ -6,7 +6,6 @@ If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-
 Write-Host ""
 Write-Host "MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD        "
 Write-Host "M:::::::M             M:::::::M    D:::::::::::::DDD     "
@@ -27,21 +26,24 @@ Write-Host "MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD        "
 
 Write-Host ""
 Write-Host "========Mattia Diana========"
+Write-Host ""
 Write-Host "=====Powershell Toolbox====="
-
+Write-Host "=======Managing Device======"
+Write-Host ""
+Write-Host ""
 
 
 # Check the system's theme from the registry
 $theme = Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'AppsUseLightTheme'
 if ($theme.AppsUseLightTheme -eq 1) {
     $isLightTheme = $true
-    $backgroundColor = "White" # Light mode background color
-    $textColor = "Black" # Dark mode text color
+    $backgroundColor = "White" 
+    $textColor = "Black" 
     $accentColor = "Blue"
 } else {
     $isLightTheme = $false
-    $backgroundColor = "#2D2D30" # Dark mode background color, using a common dark theme color
-    $textColor = "White" # Dark mode text color
+    $backgroundColor = "#White" 
+    $textColor = "Black" 
     $accentColor = "Blue"
 }
 
@@ -59,7 +61,7 @@ Add-Type -AssemblyName PresentationFramework
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
-        
+
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" /> <!-- For static controls: TextBox and Buttons -->
@@ -78,15 +80,29 @@ Add-Type -AssemblyName PresentationFramework
             </ScrollViewer>
         </Grid>
 
-
-
         <TabControl Grid.Column="1" Margin="10">
-            <TabItem Header="Options">
-                <StackPanel>
-                    <CheckBox Name="chkOption1" Content="Option 1" />
-                    <CheckBox Name="chkOption2" Content="Option 2" />
-                    <Button Name="btnRun" Content="Run" />
-                </StackPanel>
+            <TabItem Header="Apps">
+                <!-- Nested TabControl for the three new tabs -->
+                <TabControl>
+                    <TabItem Header="Favorites">
+                        <StackPanel>
+                            <!-- Add your controls for SubOption 1 here -->
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Other">
+                        <StackPanel>
+                            <!-- Add your controls for SubOption 2 here -->
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="WinUtil's">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Name="panelWinUtils">
+                                <!-- Dynamic checkboxes for applications will be added here -->
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                </TabControl>
             </TabItem>
         </TabControl>
     </Grid>
@@ -105,30 +121,98 @@ $panelDevices = $window.FindName("panelDevices")
 $btnRun = $window.FindName("btnRun")
 
 
+$jsonUrls = @(
+    "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json",
+    "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
+)
+
+# Initialize a hashtable to store applications by category
+# Initialize a hashtable to store applications by category
+$appsByCategory = @{}
+
+# Iterate over the URLs and fetch JSON content from each
+foreach ($jsonUrl in $jsonUrls) {
+    $jsonContent = Invoke-WebRequest -Uri $jsonUrl -UseBasicParsing | ConvertFrom-Json
+
+    # Organize applications by category
+    foreach ($app in $jsonContent.PSObject.Properties) {
+        $category = $app.Value.category
+        if (-not $category) {
+            $category = "Uncategorized" # Assign a default category if null or empty
+        }
+
+        if (-not $appsByCategory.ContainsKey($category)) {
+            $appsByCategory[$category] = @()
+        }
+        $appsByCategory[$category] += $app
+    }
+}
+
+# Correct XML manipulation
+$panelWinUtils = $window.FindName("panelWinUtils")
 
 
-# Set window background
-$window.Background = [System.Windows.Media.Brushes]::$backgroundColor
 
-# Update controls' colors
-$txtHostname.Background = [System.Windows.Media.Brushes]::$backgroundColor
-$txtHostname.Foreground = [System.Windows.Media.Brushes]::$textColor
+# Populate the WinUtil's tab with categories and their applications
+foreach ($category in $appsByCategory.Keys) {
+    # Create and add a TextBlock for the category title
+    $categoryTitle = New-Object System.Windows.Controls.TextBlock
+    $categoryTitle.Text = $category
+    $categoryTitle.FontWeight = "Bold"
+    $categoryTitle.Margin = New-Object System.Windows.Thickness(5)
+    $panelWinUtils.Children.Add($categoryTitle)
 
-$btnAdd.Background = [System.Windows.Media.Brushes]::$accentColor
-$btnAdd.Foreground = [System.Windows.Media.Brushes]::$textColor
+    # Add application checkboxes under this category
+    foreach ($app in $appsByCategory[$category]) {
+        $checkBox = New-Object System.Windows.Controls.CheckBox
 
-$btnRemove.Background = [System.Windows.Media.Brushes]::$accentColor
-$btnRemove.Foreground = [System.Windows.Media.Brushes]::$textColor
+        # Create a StackPanel to hold the text and the hyperlink
+        $stackPanel = New-Object System.Windows.Controls.StackPanel
+        $stackPanel.Orientation = "Horizontal"
 
-$listDevices.Background = [System.Windows.Media.Brushes]::$backgroundColor
-$listDevices.Foreground = [System.Windows.Media.Brushes]::$textColor
+        # Create a TextBlock for the app's content
+        $textBlock = New-Object System.Windows.Controls.TextBlock
+        $textBlock.Text = $app.Value.content
 
-$chkOption1.Foreground = [System.Windows.Media.Brushes]::$textColor
-$chkOption2.Foreground = [System.Windows.Media.Brushes]::$textColor
+        # Add the TextBlock to the StackPanel
+        $stackPanel.Children.Add($textBlock)
 
-$btnRun.Background = [System.Windows.Media.Brushes]::$accentColor
-$btnRun.Foreground = [System.Windows.Media.Brushes]::$textColor
+        # Create the hyperlink
+        $hyperlink = New-Object System.Windows.Documents.Hyperlink
+        $hyperlink.Inlines.Add(" ?")
+        $hyperlink.NavigateUri = New-Object System.Uri($app.Value.link)
 
+        # Attach an event handler to the hyperlink
+        $hyperlink.Add_RequestNavigate({
+            param($sender, $e)
+            Start-Process $e.Uri.AbsoluteUri
+        })
+        
+        # Add the Hyperlink to the TextBlock
+        $textBlock.Inlines.Add($hyperlink)
+
+        # Remove the underline from the hyperlink
+        $hyperlink.TextDecorations = $null
+
+        $checkBox.Content = $stackPanel
+        $checkBox.Margin = New-Object System.Windows.Thickness(5)
+        $panelWinUtils.Children.Add($checkBox)
+    }
+
+}
+
+# Window-level event handler for hyperlink clicks
+$window.Add_PreviewMouseLeftButtonDown({
+    $pos = [Windows.Input.Mouse]::GetPosition($window)
+    $hitTestResult = [Windows.Media.VisualTreeHelper]::HitTest($window, $pos)
+
+    if ($hitTestResult -and $hitTestResult.VisualHit -is [System.Windows.Documents.Hyperlink]) {
+        $hyperlink = $hitTestResult.VisualHit
+        if ($hyperlink.NavigateUri) {
+            Start-Process $hyperlink.NavigateUri.AbsoluteUri
+        }
+    }
+})
 
 
 
@@ -141,6 +225,12 @@ function Add-Device {
     $hostname = $txtHostname.Text
     if (-not $hostname) { return }
     if (-not (Test-Connection $hostname -Quiet -Count 1)) { return }
+
+    if (-not (Test-WSMan -ComputerName $hostname)) {
+        Write-Host "PowerShell remoting is not enabled on $hostname." 
+        return
+    }
+
 
     $checkbox = New-Object System.Windows.Controls.CheckBox
     $checkbox.Content = $hostname
@@ -158,25 +248,56 @@ function Remove-Device {
 # Event handlers
 $btnAdd.Add_Click({ Add-Device })
 $btnRemove.Add_Click({ Remove-Device })
+
 $btnRun.Add_Click({
+    # Collect the selected devices
     $selectedDevices = @()
     foreach ($deviceCheckBox in $panelDevices.Children) {
         if ($deviceCheckBox.IsChecked -eq $true) {
             $selectedDevices += $deviceCheckBox.Content
         }
     }
-    foreach ($hostname in $selectedDevices) {
-        Write-Host "Selected device: $hostname"
-        # Implement the desired actions here
+
+    # Invoke the command on the selected devices
+    Invoke-Command -ComputerName $selectedDevices -ScriptBlock {
+        Try {
+        $wingetVersion = winget --version
+        Write-Host "winget is installed."
+        Write-Host "Version: $wingetVersion"
+        write-host ""
+    } Catch {
+        Write-Host "winget is not installed."
+
+        $URL = "https://api.github.com/repos/microsoft/winget-cli/releases/latest"
+        $URL = (Invoke-WebRequest -Uri $URL).Content | ConvertFrom-Json |
+                Select-Object -ExpandProperty "assets" |
+                Where-Object "browser_download_url" -Match '.msixbundle' |
+                Select-Object -ExpandProperty "browser_download_url"
+
+        Invoke-WebRequest -Uri $URL -OutFile "Setup.msix" -UseBasicParsing
+        Add-AppxPackage -Path "Setup.msix"
+        Remove-Item "Setup.msix"
     }
-    [System.Windows.MessageBox]::Show("Actions have been performed on the selected devices.")
+
+
+    Try {
+        $chocoversion = choco -v
+        Write-Host "chocolatey is installed."
+        write-host "Version: $chocoversion"
+        write-host ""
+    } Catch {
+        Write-Host "chocolatey is not installed."
+
+        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+    }
+    }
 })
 
-
-
-
-$listDevices.Items.Add($env:COMPUTERNAME)
-Write-Host "Connected with: {$env:COMPUTERNAME}"
+$checkbox = New-Object System.Windows.Controls.CheckBox
+$checkbox.Content = $env:COMPUTERNAME
+$checkbox.Margin = New-Object System.Windows.Thickness(5)
+$panelDevices.Children.Add($checkbox)
+Write-Host "Connected with: $env:COMPUTERNAME"
 
 
 
