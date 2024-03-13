@@ -2,7 +2,7 @@
 
 This utility is a Toolbox that helps me every day. I Download my everyday applications and tweak the most important settings on my windows machines using ShellUtil.
 
-## Launch Command
+## Launch Command (not working rn)
 
 #### Simple way
 

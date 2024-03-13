@@ -139,8 +139,8 @@ $btnDeleteSource = $window.FindName("btnDeleteSource")
 
 
 $jsonUrls = @(
-    "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json",
-    "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
+    "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json"
+    #"https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
 )
 
 
