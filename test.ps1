@@ -81,28 +81,39 @@ Add-Type -AssemblyName PresentationFramework
         </Grid>
 
         <TabControl Grid.Column="1" Margin="10">
-            <TabItem Header="Apps">
+            <TabItem Header="Windows">
                 <!-- Nested TabControl for the three new tabs -->
                 <TabControl>
-                    <TabItem Header="Favorites">
-                        <StackPanel>
-                            <!-- Add your controls for SubOption 1 here -->
-                        </StackPanel>
-                    </TabItem>
-                    <TabItem Header="Other">
-                        <StackPanel>
-                            <!-- Add your controls for SubOption 2 here -->
-                        </StackPanel>
-                    </TabItem>
-                    <TabItem Header="WinUtil's">
+                    <TabItem Header="Applications">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Name="panelWinUtils">
-                                <!-- Dynamic checkboxes for applications will be added here -->
+                            <StackPanel Name="appspanel">
+                                <!-- Apps -->
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
-
+                    <TabItem Header="Tweaks">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Name="tweakspanel">
+                                <!-- Apps -->
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
                 </TabControl>
+            </TabItem>
+            <TabItem Header="Sources">
+                <StackPanel Margin="10">
+                    <DockPanel LastChildFill="False">
+                        <TextBox Name="txtNewSource" DockPanel.Dock="Left" Width="200" Margin="0,0,5,10"/>
+                        <ComboBox Name="cmbSourceType" Width="120" Margin="0,0,5,10">
+                            <ComboBoxItem Content="Application"/>
+                            <ComboBoxItem Content="Tweak"/>
+                        </ComboBox>
+                        <Button Name="btnAddSource" Content="Add" Width="75" Margin="5,0,0,10"/>
+                    </DockPanel>
+                    <TextBlock Margin="10,20,0,0" FontWeight="Bold">Current Sources:</TextBlock>
+                    <ListBox Name="lstSources" />
+                    <Button Name="btnDeleteSource" Content="Delete Source" Margin="10"/>
+                </StackPanel>
             </TabItem>
         </TabControl>
     </Grid>
@@ -119,12 +130,29 @@ $btnAdd = $window.FindName("btnAdd")
 $btnRemove = $window.FindName("btnRemove")
 $panelDevices = $window.FindName("panelDevices")
 $btnRun = $window.FindName("btnRun")
+$txtNewSource = $window.FindName("txtNewSource")
+$cmbSourceType = $window.FindName("cmbSourceType")
+$btnAddSource = $window.FindName("btnAddSource")
+$lstSources = $window.FindName("lstSources")
+$btnDeleteSource = $window.FindName("btnDeleteSource")
+
 
 
 $jsonUrls = @(
     "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json",
     "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
 )
+
+
+$configPath = "C:\Windows\WinToolBox.config"
+if (Test-Path $configPath) {
+    $savedSourceEntries = Get-Content $configPath
+    foreach ($entry in $savedSourceEntries) {
+        $lstSources.Items.Add($entry)
+    }
+}
+
+
 
 # Initialize a hashtable to store applications by category
 $appsByCategory = @{}
@@ -148,35 +176,48 @@ foreach ($jsonUrl in $jsonUrls) {
 }
 
 # Correct XML manipulation
-$panelWinUtils = $window.FindName("panelWinUtils")
+$appspanel = $window.FindName("appspanel")
 
 
 
-# Populate the WinUtil's tab with categories and their applications
+# Clear existing items in appspanel to avoid duplicates
+$appspanel.Children.Clear()
+
+# Populate the appspanel with categories and their applications, each in an Expander
 foreach ($category in $appsByCategory.Keys) {
-    # Create and add a TextBlock for the category title
-    $categoryTitle = New-Object System.Windows.Controls.TextBlock
-    $categoryTitle.Text = $category
-    $categoryTitle.FontWeight = "Bold"
-    $categoryTitle.Margin = New-Object System.Windows.Thickness(5)
-    $panelWinUtils.Children.Add($categoryTitle)
+    $expander = New-Object System.Windows.Controls.Expander
+    $expander.Header = $category
+    $expander.IsExpanded = $true
+
+    $stackPanel = New-Object System.Windows.Controls.StackPanel
 
     # Add application checkboxes under this category
     foreach ($app in $appsByCategory[$category]) {
         $checkBox = New-Object System.Windows.Controls.CheckBox
 
         # Create a StackPanel to hold the text and the hyperlink
-        $stackPanel = New-Object System.Windows.Controls.StackPanel
-        $stackPanel.Orientation = "Horizontal"
+        $innerStackPanel = New-Object System.Windows.Controls.StackPanel
+        $innerStackPanel.Orientation = "Horizontal"
 
         # Create a TextBlock for the app's content
         $textBlock = New-Object System.Windows.Controls.TextBlock
         $textBlock.Text = $app.Value.content
 
-        # Add the TextBlock to the StackPanel
-        $stackPanel.Children.Add($textBlock)
+        # Add the TextBlock to the inner StackPanel
+        $innerStackPanel.Children.Add($textBlock)
 
-        # Create the hyperlink
+        # Optional: Add a Hyperlink to the TextBlock if needed
+
+        # Add ToolTip if needed
+        $toolTip = New-Object System.Windows.Controls.ToolTip
+        $toolTip.Content = $app.Value.description
+        $checkBox.ToolTip = $toolTip
+
+        $checkBox.Content = $innerStackPanel
+        $checkBox.Margin = New-Object System.Windows.Thickness(5)
+        $stackPanel.Children.Add($checkBox)
+
+                # Create the hyperlink
         $hyperlink = New-Object System.Windows.Documents.Hyperlink
         $hyperlink.Inlines.Add(" ?")
         $hyperlink.NavigateUri = New-Object System.Uri($app.Value.link)
@@ -192,17 +233,12 @@ foreach ($category in $appsByCategory.Keys) {
 
         # Remove the underline from the hyperlink
         $hyperlink.TextDecorations = $null
-
-        $toolTip = New-Object System.Windows.Controls.ToolTip
-        $toolTip.Content = $app.Value.description  
-        $checkBox.ToolTip = $toolTip
-
-        $checkBox.Content = $stackPanel
-        $checkBox.Margin = New-Object System.Windows.Thickness(5)
-        $panelWinUtils.Children.Add($checkBox)
     }
 
+    $expander.Content = $stackPanel
+    $appspanel.Children.Add($expander)
 }
+
 
 # Window-level event handler for hyperlink clicks
 $window.Add_PreviewMouseLeftButtonDown({
@@ -218,8 +254,44 @@ $window.Add_PreviewMouseLeftButtonDown({
 })
 
 
+function Add-Source {
+    $newSource = $txtNewSource.Text
+    $selectedType = $cmbSourceType.SelectedItem.Content
+    if (-not $newSource -or -not $selectedType) { return }
+
+    # Create a combined string that includes the type and the source URL
+    $sourceEntry = "$newSource"
+
+    # Add the new source entry to the list in the UI under the correct group
+    $lstSources.Items.Add($sourceEntry)
+
+    # Write the new source entry to the config file
+    Add-Content -Path "C:\Windows\WinToolBox.config" -Value $sourceEntry
+}
+
+# Bind the Add-Source function to the Add Source button click event
+$btnAddSource.Add_Click({ Add-Source })
 
 
+function Delete-Source {
+    $selectedItem = $lstSources.SelectedItem
+    if ($selectedItem -eq $null) { return }
+
+    # Remove the selected item from the list in the UI
+    $lstSources.Items.Remove($selectedItem)
+
+    # Rebuild the source list excluding the deleted item
+    $updatedSources = @()
+    foreach ($item in $lstSources.Items) {
+        $updatedSources += $item
+    }
+
+    # Overwrite the config file with the updated list
+    Set-Content -Path "C:\Windows\WinToolBox.config" -Value $updatedSources
+}
+
+# Bind the Delete-Source function to the Delete button click event
+$btnDeleteSource.Add_Click({ Delete-Source })
 
 
 
