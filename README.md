@@ -1,6 +1,6 @@
 # WinToolbox
 
-This utility is a Toolbox that helps me every day. I Download my everyday applications and tweak the most important settings on my windows machines using ShellUtil.
+This utility is a Toolbox that should helps me every day. The Plan is to Download my everyday applications and tweak the most important settings on my windows machines fast & at one place.
 
 ## Launch Command (not working rn)
 
@@ -23,3 +23,26 @@ irm https://raw.githubusercontent.com/mydrift-user/wintoolbox/main/start.ps1 | i
 ## Issue:
 
 - Windows Security (formerly Defender) and other anti-virus software are known to block the script. The script gets flagged due to the fact that it requires administrator privileges & makes drastic system changes.
+
+
+- Sources Are not being applied and window looks ugly
+
+- Add Device & connecting are not working (kind of)
+
+- Applications can't be installed rn
+
+
+## Plans
+
+- Dynamically add device that have Powershell remote sessions enabled
+
+- check the ones you want to run the stuff on
+
+- install all essential apps at one place
+
+- Tweak your system and Debloat annoying stuff
+
+
+### Contribute
+
+If you have suggestions, give it a try!
