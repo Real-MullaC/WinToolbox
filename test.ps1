@@ -127,7 +127,6 @@ $jsonUrls = @(
 )
 
 # Initialize a hashtable to store applications by category
-# Initialize a hashtable to store applications by category
 $appsByCategory = @{}
 
 # Iterate over the URLs and fetch JSON content from each
@@ -193,6 +192,10 @@ foreach ($category in $appsByCategory.Keys) {
 
         # Remove the underline from the hyperlink
         $hyperlink.TextDecorations = $null
+
+        $toolTip = New-Object System.Windows.Controls.ToolTip
+        $toolTip.Content = $app.Value.description  
+        $checkBox.ToolTip = $toolTip
 
         $checkBox.Content = $stackPanel
         $checkBox.Margin = New-Object System.Windows.Thickness(5)
