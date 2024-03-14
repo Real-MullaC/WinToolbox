@@ -110,8 +110,10 @@ Add-Type -AssemblyName PresentationFramework
                         </ComboBox>
                         <Button Name="btnAddSource" Content="Add" Width="75" Margin="5,0,0,10"/>
                     </DockPanel>
-                    <TextBlock Margin="10,20,0,0" FontWeight="Bold">Current Sources:</TextBlock>
-                    <ListBox Name="lstSources" />
+                    <TextBlock Margin="0,20,0,0" FontWeight="Bold">Current Sources:</TextBlock>
+                    <ScrollViewer VerticalScrollBarVisibility="Visible">
+                        <StackPanel Name="panelSources" />
+                    </ScrollViewer>
                     <Button Name="btnDeleteSource" Content="Delete Source" Margin="10"/>
                 </StackPanel>
             </TabItem>
@@ -134,9 +136,12 @@ $txtNewSource = $window.FindName("txtNewSource")
 $cmbSourceType = $window.FindName("cmbSourceType")
 $btnAddSource = $window.FindName("btnAddSource")
 $lstSources = $window.FindName("lstSources")
+$panelSources = $window.FindName("panelSources")
 $btnDeleteSource = $window.FindName("btnDeleteSource")
-
-
+$btnAddSource.Add_Click({ Add-Source })
+$btnDeleteSource.Add_Click({ Remove-Source })
+$btnAdd.Add_Click({ Add-Device })
+$btnRemove.Add_Click({ Remove-Device })
 
 $jsonUrls = @(
     "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json"
@@ -256,42 +261,49 @@ $window.Add_PreviewMouseLeftButtonDown({
 
 function Add-Source {
     $newSource = $txtNewSource.Text
-    $selectedType = $cmbSourceType.SelectedItem.Content
-    if (-not $newSource -or -not $selectedType) { return }
+    if (-not $newSource) { return }  # Check if the new source is not empty
 
-    # Create a combined string that includes the type and the source URL
-    $sourceEntry = "$newSource"
+    # Add the new source to the configuration file
+    Add-Content -Path "C:\Windows\WinToolBox.config" -Value $newSource
 
-    # Add the new source entry to the list in the UI under the correct group
-    $lstSources.Items.Add($sourceEntry)
+    # Create a new CheckBox for the new source
+    $checkbox = New-Object System.Windows.Controls.CheckBox
+    $checkbox.Content = $newSource
+    $checkbox.Margin = New-Object System.Windows.Thickness(5)
 
-    # Write the new source entry to the config file
-    Add-Content -Path "C:\Windows\WinToolBox.config" -Value $sourceEntry
+    # Add the CheckBox to the StackPanel for sources
+    $panelSources.Children.Add($checkbox)
+
+    # Clear the input field after adding the source
+    $txtNewSource.Text = ""
 }
 
-# Bind the Add-Source function to the Add Source button click event
-$btnAddSource.Add_Click({ Add-Source })
 
 
-function Delete-Source {
-    $selectedItem = $lstSources.SelectedItem
-    if ($selectedItem -eq $null) { return }
 
-    # Remove the selected item from the list in the UI
-    $lstSources.Items.Remove($selectedItem)
 
-    # Rebuild the source list excluding the deleted item
-    $updatedSources = @()
-    foreach ($item in $lstSources.Items) {
-        $updatedSources += $item
+
+function Remove-Source {
+    # Create an array to hold sources that will remain
+    $remainingSources = @()
+
+    # Iterate backwards through the StackPanel children because we'll be modifying the collection
+    for ($i = $panelSources.Children.Count - 1; $i -ge 0; $i--) {
+        $item = $panelSources.Children[$i]
+        if ($item.IsChecked) {
+            # If the item is checked, remove it from the StackPanel
+            $panelSources.Children.RemoveAt($i)
+        } else {
+            # If not checked, this source should remain in the configuration file
+            $remainingSources += $item.Content
+        }
     }
 
-    # Overwrite the config file with the updated list
-    Set-Content -Path "C:\Windows\WinToolBox.config" -Value $updatedSources
+    # Update the configuration file with remaining sources
+    Set-Content -Path "C:\Windows\WinToolBox.config" -Value $remainingSources
 }
 
-# Bind the Delete-Source function to the Delete button click event
-$btnDeleteSource.Add_Click({ Delete-Source })
+
 
 
 
@@ -319,10 +331,6 @@ function Remove-Device {
         $panelDevices.Children.Remove($device)
     }
 }
-
-# Event handlers
-$btnAdd.Add_Click({ Add-Device })
-$btnRemove.Add_Click({ Remove-Device })
 
 $btnRun.Add_Click({
     # Collect the selected devices
@@ -368,15 +376,13 @@ $btnRun.Add_Click({
     }
 })
 
+
+# Add the current device to the list of devices
 $checkbox = New-Object System.Windows.Controls.CheckBox
 $checkbox.Content = $env:COMPUTERNAME
 $checkbox.Margin = New-Object System.Windows.Thickness(5)
 $panelDevices.Children.Add($checkbox)
 Write-Host "Connected with: $env:COMPUTERNAME"
-
-
-
-
 
 
 
