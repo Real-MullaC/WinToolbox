@@ -340,39 +340,7 @@ $btnRun.Add_Click({
             $selectedDevices += $deviceCheckBox.Content
         }
     }
-
-    # Invoke the command on the selected devices
-    Invoke-Command -ComputerName $selectedDevices -ScriptBlock {
-        Try {
-        $wingetVersion = winget --version
-        Write-Host "winget is installed."
-        Write-Host "Version: $wingetVersion"
-        write-host ""
-    } Catch {
-        Write-Host "winget is not installed."
-
-        $URL = "https://api.github.com/repos/microsoft/winget-cli/releases/latest"
-        $URL = (Invoke-WebRequest -Uri $URL).Content | ConvertFrom-Json |
-                Select-Object -ExpandProperty "assets" |
-                Where-Object "browser_download_url" -Match '.msixbundle' |
-                Select-Object -ExpandProperty "browser_download_url"
-
-        Invoke-WebRequest -Uri $URL -OutFile "Setup.msix" -UseBasicParsing
-        Add-AppxPackage -Path "Setup.msix"
-        Remove-Item "Setup.msix"
-    }
-
-
-    Try {
-        $chocoversion = choco -v
-        Write-Host "chocolatey is installed."
-        write-host "Version: $chocoversion"
-        write-host ""
-    } Catch {
-        Write-Host "chocolatey is not installed."
-
-        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-    }
+    Write-Host "Selected devices: $selectedDevices"
     }
 })
 
