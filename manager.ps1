@@ -341,7 +341,6 @@ $btnRun.Add_Click({
         }
     }
     Write-Host "Selected devices: $selectedDevices"
-    }
 })
 
 
