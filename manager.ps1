@@ -13,10 +13,15 @@
 # check if codes are running in an elevated session. if not, restart the script in an elevated session
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     # If not elevated, relaunch the script in a new elevated PowerShell session
-    $escapedCommand = "irm mdiana.dev/win | iex"
+    $escapedCommand = 'irm mdiana.dev/win | iex'
     Start-Process PowerShell -ArgumentList "-Command", $escapedCommand -Verb RunAs
     exit
 }
+
+
+
+# Your script content follows here...
+
 
 Write-Host ""
 Write-Host "MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD        "
