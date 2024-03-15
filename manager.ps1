@@ -1,3 +1,4 @@
+try {
 # Check if the current instance is running as administrator
 If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     # Relaunch the script with administrator rights
@@ -355,3 +356,9 @@ Write-Host "Connected with: $env:COMPUTERNAME"
 
 # Show the GUI
 $window.ShowDialog() | Out-Null
+
+} catch {
+    Write-Host "An error occurred: $_"
+    Read-Host -Prompt "Press Enter to exit"
+    exit
+}
