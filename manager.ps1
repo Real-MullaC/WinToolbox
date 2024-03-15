@@ -1,21 +1,9 @@
 # Check if the current instance is running as administrator
-$currentPid = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-$principal = new-object System.Security.Principal.WindowsPrincipal($currentPid)
-$adminRole=[System.Security.Principal.WindowsBuiltInRole]::Administrator
-
-
-if ($principal.IsInRole($adminRole))
-{
-    $Host.UI.RawUI.WindowTitle = $myInvocation.MyCommand.Definition + "(Admin)"
-    clear-host
-}
-else
-{
-    $newProcess = new-object System.Diagnostics.ProcessStartInfo "PowerShell";
-    $newProcess.Arguments = $myInvocation.MyCommand.Definition;
-    $newProcess.Verb = "runas";
-    [System.Diagnostics.Process]::Start($newProcess);
-    break
+If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    # Relaunch the script with administrator rights
+    $arguments = "& '" + $myinvocation.mycommand.definition + "'"
+    Start-Process powershell -ArgumentList $arguments -Verb RunAs
+    exit
 }
 
 Write-Host ""
@@ -159,16 +147,6 @@ $jsonUrls = @(
     "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json"
     #"https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
 )
-
-
-$configPath = "C:\Windows\WinToolBox.config"
-if (Test-Path $configPath) {
-    $savedSourceEntries = Get-Content $configPath
-    foreach ($entry in $savedSourceEntries) {
-        $lstSources.Items.Add($entry)
-    }
-}
-
 
 
 # Initialize a hashtable to store applications by category
@@ -344,16 +322,7 @@ function Remove-Device {
     }
 }
 
-$btnRun.Add_Click({
-    # Collect the selected devices
-    $selectedDevices = @()
-    foreach ($deviceCheckBox in $panelDevices.Children) {
-        if ($deviceCheckBox.IsChecked -eq $true) {
-            $selectedDevices += $deviceCheckBox.Content
-        }
-    }
-    Write-Host "Selected devices: $selectedDevices"
-})
+
 
 
 # Add the current device to the list of devices
@@ -367,3 +336,4 @@ Write-Host "Connected with: $env:COMPUTERNAME"
 
 # Show the GUI
 $window.ShowDialog() | Out-Null
+
