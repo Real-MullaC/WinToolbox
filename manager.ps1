@@ -87,7 +87,7 @@ Add-Type -AssemblyName PresentationFramework
                     <TabItem Header="Applications">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Name="appspanel">
-                                <!-- Apps -->
+                                <!-- Apps --> 
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
