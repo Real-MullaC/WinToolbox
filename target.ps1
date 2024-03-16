@@ -31,22 +31,9 @@ Write-Host "=====Powershell Toolbox====="
 Write-Host "=======Managed Device======="
 
 
-function Enable-PsRemotingTemporary {
-    Enable-PSRemoting -Force
-    Set-Service -Name WinRM -StartupType 'Automatic'
-    Start-Service -Name WinRM
-}
+Enable-PSRemoting -Force
 
-function Disable-PsRemotingTemporary {
-    Disable-PSRemoting -Force
-    Stop-Service -Name WinRM -Force
-    Set-Service -Name WinRM -StartupType 'Disabled'
-}
+# Start transcript logging
+Start-Transcript -Path "C:\Logs\PowerShell_transcript.txt" -Append
 
-Enable-PsRemotingTemporary
-Write-Host "PowerShell Remoting has been temporarily enabled."
-
-Register-EngineEvent -SourceIdentifier ([System.Management.Automation.PsEngineEvent]::Exiting) -Action {
-    Disable-PsRemotingTemporary
-    Write-Host "PowerShell Remoting has been disabled because the PowerShell session is closing."
-} | Out-Null
+Get-Content "C:\Logs\PowerShell_transcript.txt" -Wait

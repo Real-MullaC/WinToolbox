@@ -44,20 +44,11 @@ Write-Host "=======Managing Device======"
 Write-Host ""
 Write-Host ""
 
+$dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
 
-# Check the system's theme from the registry
-$theme = Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'AppsUseLightTheme'
-if ($theme.AppsUseLightTheme -eq 1) {
-    $isLightTheme = $true
-    $backgroundColor = "White" 
-    $textColor = "Black" 
-    $accentColor = "Blue"
-} else {
-    $isLightTheme = $false
-    $backgroundColor = "#White" 
-    $textColor = "Black" 
-    $accentColor = "Blue"
-}
+Start-Transcript -Path "C:\Logs\WinToolBox_$dateTime.log" -Append
+Get-Content "C:\Logs\WinToolBox_$dateTime.log"
+
 
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationFramework
@@ -223,9 +214,7 @@ foreach ($category in $appsByCategory.Keys) {
         # Add the TextBlock to the inner StackPanel
         $innerStackPanel.Children.Add($textBlock)
 
-        # Optional: Add a Hyperlink to the TextBlock if needed
-
-        # Add ToolTip if needed
+        # Add ToolTip
         $toolTip = New-Object System.Windows.Controls.ToolTip
         $toolTip.Content = $app.Value.description
         $checkBox.ToolTip = $toolTip
@@ -311,20 +300,26 @@ function Remove-Source {
 }
 
 
-
-
-
-
 # Device management functions
 function Add-Device {
     $hostname = $txtHostname.Text
-    if (-not $hostname) { return }
-    if (-not (Test-Connection $hostname -Quiet -Count 1)) { return }
-
-    if (-not (Test-WSMan -ComputerName $hostname)) {
+    #if (-not $hostname) { return }
+    #if ($env:COMPUTERNAME) { return } #TODO Better dublicate detection
+    if (Test-Connection $hostname -Quiet -Count 1) { 
+        if (Test-WSMan -ComputerName $hostname) {
         Write-Host "PowerShell remoting is not enabled on $hostname." 
         return
+        } else {
+            $creds = Get-Credential
+
+        }
+
+        return 
+    } else {
+        Write-Host "Device can't be pinged"
     }
+
+    
 
 
     $checkbox = New-Object System.Windows.Controls.CheckBox
