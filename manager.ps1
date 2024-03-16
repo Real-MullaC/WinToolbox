@@ -18,11 +18,6 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-
-
-# Your script content follows here...
-
-
 Write-Host ""
 Write-Host "MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD        "
 Write-Host "M:::::::M             M:::::::M    D:::::::::::::DDD     "
@@ -165,6 +160,16 @@ $jsonUrls = @(
     #"https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
 )
 
+$configPath = "C:\Windows\WinToolBox.config"
+if (Test-Path $configPath) {
+    $savedSourceEntries = Get-Content $configPath
+    foreach ($entry in $savedSourceEntries) {
+        $checkbox = New-Object System.Windows.Controls.CheckBox
+        $checkbox.Content = $entry
+        $checkbox.Margin = New-Object System.Windows.Thickness(5)
+        $panelSources.Children.Add($checkbox)
+    }
+}
 
 # Initialize a hashtable to store applications by category
 $appsByCategory = @{}
@@ -265,7 +270,6 @@ $window.Add_PreviewMouseLeftButtonDown({
     }
 })
 
-
 function Add-Source {
     $newSource = $txtNewSource.Text
     if (-not $newSource) { return }  # Check if the new source is not empty
@@ -284,10 +288,6 @@ function Add-Source {
     # Clear the input field after adding the source
     $txtNewSource.Text = ""
 }
-
-
-
-
 
 
 function Remove-Source {
@@ -309,6 +309,7 @@ function Remove-Source {
     # Update the configuration file with remaining sources
     Set-Content -Path "C:\Windows\WinToolBox.config" -Value $remainingSources
 }
+
 
 
 
