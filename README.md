@@ -17,7 +17,7 @@ iwr -useb https://mdiana.dev/win | iex
 if for some reason the website is not accessible, use the following command:
 
 ```
-irm https://raw.githubusercontent.com/mydrift-user/wintoolbox/main/start.ps1 | iex
+irm https://raw.githubusercontent.com/mydrift-user/wintoolbox/main/manager.ps1 | iex
 ```
 
 ## Issue:
