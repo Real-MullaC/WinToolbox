@@ -44,15 +44,15 @@ Write-Host "=======Managing Device======"
 Write-Host ""
 Write-Host ""
 
+
 $dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
 
-Start-Transcript -Path "C:\Logs\WinToolBox_$dateTime.log" -Append
-Get-Content "C:\Logs\WinToolBox_$dateTime.log"
+Start-Transcript -Path "C:\Windows\WinToolBox\Logs\manager_$dateTime.log" -Append
+#Get-Content "C:\Windows\WinToolbox\Logs\manager_$dateTime.log"
 
 
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationFramework
-
 
 # WPF GUI Design in XAML
 [xml]$xaml = @"
@@ -88,16 +88,45 @@ Add-Type -AssemblyName PresentationFramework
                 <!-- Nested TabControl for the three new tabs -->
                 <TabControl>
                     <TabItem Header="Applications">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Name="appspanel">
-                                <!-- Apps --> 
+                        <Grid> <!-- Ein Grid als Container für die gesamte Struktur -->
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> <!-- Reihe für die Buttons -->
+                                <RowDefinition Height="*"/> <!-- Reihe für den ScrollViewer -->
+                            </Grid.RowDefinitions>
+
+                            <!-- Buttons oben im Grid -->
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="10">
+                                <Button Name="btnInstallSelection" Content="Install Selection" Margin="5"/>
+                                <Button Name="btnUninstallSelection" Content="Uninstall Selection" Margin="5"/>
+                                <Button Name="btnUpdateSelection" Content="Update Selection" Margin="5"/>
+                                <Button Name="btnShowInstalled" Content="Show Installed" Margin="5"/>
                             </StackPanel>
-                        </ScrollViewer>
+
+                            <!-- ScrollViewer für die Applikationsliste in der zweiten Reihe des Grids -->
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Name="appspanel">
+                                    <!-- Applikationsliste -->
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
                     </TabItem>
                     <TabItem Header="Tweaks">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Name="tweakspanel">
-                                <!-- Apps -->
+                                <!-- Tweaks -->
+                                <TextBlock Text="Light/Dark Mode" FontWeight="Bold" Margin="5"/>
+                                <Button Name="btnEnableLightDarkMode" Content="Enable Dark Mode" Margin="5"/>
+                                <Button Name="btnDisableLightDarkMode" Content="Disable Dark Mode" Margin="5"/>
+
+                                <TextBlock Text="Bing Search in Start Menu" FontWeight="Bold" Margin="5"/>
+                                <Button Name="btnEnableBingSearch" Content="Enable Bing Search" Margin="5"/>
+                                <Button Name="btnDisableBingSearch" Content="Disable Bing Search" Margin="5"/>
+
+                                <TextBlock Text="Mouse Acceleration" FontWeight="Bold" Margin="5"/>
+                                <Button Name="btnEnableMouseAcceleration" Content="Enable Mouse Acceleration" Margin="5"/>
+                                <Button Name="btnDisableMouseAcceleration" Content="Disable Mouse Acceleration" Margin="5"/>
+
+                                <Button Name="btnCreateShortcut" Content="Create Shortcut" Margin="5"/>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
@@ -145,13 +174,125 @@ $btnAddSource.Add_Click({ Add-Source })
 $btnDeleteSource.Add_Click({ Remove-Source })
 $btnAdd.Add_Click({ Add-Device })
 $btnRemove.Add_Click({ Remove-Device })
+$btnInstallSelection = $window.FindName("btnInstallSelection")
+$btnUninstallSelection = $window.FindName("btnUninstallSelection")
+$btnUpdateSelection = $window.FindName("btnUpdateSelection")
+$btnShowInstalled = $window.FindName("btnShowInstalled")
+$btnInstallSelection.Add_Click({ Install-Selection })
+$btnUninstallSelection.Add_Click({ Uninstall-Selection })
+$btnUpdateSelection.Add_Click({ Update-Selection })
+$btnShowInstalled.Add_Click({ Show-Installed })
+
+
+# Light/Dark Mode
+$btnEnableLightDarkMode = $window.FindName("btnEnableLightDarkMode")
+$btnDisableLightDarkMode = $window.FindName("btnDisableLightDarkMode")
+
+$btnEnableLightDarkMode.Add_Click({ Enable-DarkMode })
+$btnDisableLightDarkMode.Add_Click({ Disable-DarkMode })
+
+# Bing Search
+$btnEnableBingSearch = $window.FindName("btnEnableBingSearch")
+$btnDisableBingSearch = $window.FindName("btnDisableBingSearch")
+
+$btnEnableBingSearch.Add_Click({ Enable-BingSearch })
+$btnDisableBingSearch.Add_Click({ Disable-BingSearch })
+
+# Mouse Acceleration
+$btnEnableMouseAcceleration = $window.FindName("btnEnableMouseAcceleration")
+$btnDisableMouseAcceleration = $window.FindName("btnDisableMouseAcceleration")
+
+$btnEnableMouseAcceleration.Add_Click({ Enable-MouseAcceleration })
+$btnDisableMouseAcceleration.Add_Click({ Disable-MouseAcceleration })
+
+# Shortcut Creation
+$btnCreateShortcut = $window.FindName("btnCreateShortcut")
+$btnCreateShortcut.Add_Click({ Create-Shortcut })
+
+
+
+
+function Install-Selection {
+    write-host "install"
+}
+
+function Uninstall-Selection {
+
+        write-host "uninstall"
+}
+
+function Update-Selection {
+        write-host "update"
+}
+
+function Show-Installed {
+        write-host "installed"
+}
+
+function Enable-DarkMode {
+    $scriptBlock = {
+        # PowerShell command to enable dark mode
+    }
+    Invoke-RemoteCommand -ScriptBlock $scriptBlock
+}
+
+function Disable-DarkMode {
+    $scriptBlock = {
+        # PowerShell command to disable dark mode
+    }
+    Invoke-RemoteCommand -ScriptBlock $scriptBlock
+}
+
+function Invoke-RemoteCommand {
+    param(
+        [ScriptBlock]$ScriptBlock
+    )
+    $selectedDevices = $panelDevices.Children | Where-Object { $_.IsChecked -eq $true } | ForEach-Object { $_.Content }
+    foreach ($device in $selectedDevices) {
+        Invoke-Command -ComputerName $device -ScriptBlock $ScriptBlock
+    }
+}
+
+
+function Create-Shortcut {
+	# ************************************************
+	#
+	$desktopPath = "$($env:USERPROFILE)\Desktop"
+	# Specify the target PowerShell command
+	$command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'irm mdiana.dev/win | iex'"
+	# Specify the path for the shortcut
+	$shortcutPath = Join-Path $desktopPath 'WinToolBox.lnk'
+	# Create a shell object
+	$shell = New-Object -ComObject WScript.Shell
+	
+	# Create a shortcut object
+	$shortcut = $shell.CreateShortcut($shortcutPath)
+
+	if (Test-Path -Path "c:\Windows\WinToolBox\logo.png")
+	{
+		$shortcut.IconLocation = "c:\Windows\WinToolBox\logo.png"
+	}
+	
+	# Set properties of the shortcut
+	$shortcut.TargetPath = "powershell.exe"
+	$shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
+	# Save the shortcut
+	$shortcut.Save()
+	Write-Host "Shortcut created at: $shortcutPath"
+	# 
+	# ************************************************
+}
+
+
+
+
 
 $jsonUrls = @(
     "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json"
     #"https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
 )
 
-$configPath = "C:\Windows\WinToolBox.config"
+$configPath = "C:\Windows\WinToolbox\WinToolBox.config"
 if (Test-Path $configPath) {
     $savedSourceEntries = Get-Content $configPath
     foreach ($entry in $savedSourceEntries) {
@@ -212,7 +353,7 @@ foreach ($category in $appsByCategory.Keys) {
         $textBlock.Text = $app.Value.content
 
         # Add the TextBlock to the inner StackPanel
-        $innerStackPanel.Children.Add($textBlock)
+        $innerStackPanel.Children.Add($textBlock) | Out-Null
 
         # Add ToolTip
         $toolTip = New-Object System.Windows.Controls.ToolTip
@@ -221,7 +362,7 @@ foreach ($category in $appsByCategory.Keys) {
 
         $checkBox.Content = $innerStackPanel
         $checkBox.Margin = New-Object System.Windows.Thickness(5)
-        $stackPanel.Children.Add($checkBox)
+        $stackPanel.Children.Add($checkBox) | Out-Null
 
                 # Create the hyperlink
         $hyperlink = New-Object System.Windows.Documents.Hyperlink
@@ -242,7 +383,7 @@ foreach ($category in $appsByCategory.Keys) {
     }
 
     $expander.Content = $stackPanel
-    $appspanel.Children.Add($expander)
+    $appspanel.Children.Add($expander) | Out-Null
 }
 
 
@@ -299,33 +440,19 @@ function Remove-Source {
     Set-Content -Path "C:\Windows\WinToolBox.config" -Value $remainingSources
 }
 
-
 # Device management functions
 function Add-Device {
     $hostname = $txtHostname.Text
     #if (-not $hostname) { return }
     #if ($env:COMPUTERNAME) { return } #TODO Better dublicate detection
     if (Test-Connection $hostname -Quiet -Count 1) { 
-        if (Test-WSMan -ComputerName $hostname) {
-        Write-Host "PowerShell remoting is not enabled on $hostname." 
-        return
-        } else {
-            $creds = Get-Credential
-
-        }
-
-        return 
+        $checkbox = New-Object System.Windows.Controls.CheckBox
+        $checkbox.Content = $hostname
+        $checkbox.Margin = New-Object System.Windows.Thickness(5)
+        $panelDevices.Children.Add($checkbox)
     } else {
-        Write-Host "Device can't be pinged"
+        Write-Host "Cannot reach the device"
     }
-
-    
-
-
-    $checkbox = New-Object System.Windows.Controls.CheckBox
-    $checkbox.Content = $hostname
-    $checkbox.Margin = New-Object System.Windows.Thickness(5)
-    $panelDevices.Children.Add($checkbox)
 }
 
 function Remove-Device {
@@ -336,15 +463,12 @@ function Remove-Device {
 }
 
 
-
-
 # Add the current device to the list of devices
 $checkbox = New-Object System.Windows.Controls.CheckBox
 $checkbox.Content = $env:COMPUTERNAME
 $checkbox.Margin = New-Object System.Windows.Thickness(5)
 $panelDevices.Children.Add($checkbox)
 Write-Host "Connected with: $env:COMPUTERNAME"
-
 
 
 # Show the GUI

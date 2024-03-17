@@ -30,10 +30,9 @@ Write-Host ""
 Write-Host "=====Powershell Toolbox====="
 Write-Host "=======Managed Device======="
 
+Start-Transcript -Path "C:\Windows\WinToolBox\Logs\target_$dateTime.log" -Append
+Get-Content "C:\Windows\WinToolbox\Logs\target_$dateTime.log"
+
 
 Enable-PSRemoting -Force
 
-# Start transcript logging
-Start-Transcript -Path "C:\Logs\PowerShell_transcript.txt" -Append
-
-Get-Content "C:\Logs\PowerShell_transcript.txt" -Wait
