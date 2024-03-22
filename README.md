@@ -7,11 +7,11 @@ This utility is a Toolbox that should helps me every day. The Plan is to Downloa
 #### Simple way
 
 ```
-irm https://mdiana.dev/win | iex
+irm https://mdiana.win | iex
 ```
 or: 
 ```
-iwr -useb https://mdiana.dev/win | iex
+iwr -useb https://mdiana.win | iex
 ```
 
 if for some reason the website is not accessible, use the following command:
@@ -19,6 +19,7 @@ if for some reason the website is not accessible, use the following command:
 ```
 irm https://raw.githubusercontent.com/mydrift-user/wintoolbox/main/manager.ps1 | iex
 ```
+if you still have issues, download the manager.ps1 file and execute it locally.
 
 ## Issue:
 
