@@ -7,11 +7,11 @@ This utility is a Toolbox that should helps me every day. The Plan is to Downloa
 #### Simple way
 
 ```
-irm https://mdiana.win | iex
+irm mdiana.win | iex
 ```
 or: 
 ```
-iwr -useb https://mdiana.win | iex
+iwr -useb mdiana.win | iex
 ```
 
 if for some reason the website is not accessible, use the following command:
