@@ -69,13 +69,13 @@ Add-Type -AssemblyName PresentationFramework
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PowerShell Remote Manager" Height="450" Width="800">
-    <Expander Header="Your Header Here" IsExpanded="False">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="2*" />
-            </Grid.ColumnDefinitions>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
 
+        <Expander Header="Your Header Here" IsExpanded="False">
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" /> <!-- For static controls: TextBox and Buttons -->
@@ -94,7 +94,7 @@ Add-Type -AssemblyName PresentationFramework
                 </ScrollViewer>
             </Grid>
         </Expander>
-
+        
         <TabControl Grid.Column="1" Margin="10">
             <TabItem Header="Windows">
                 <!-- Nested TabControl for the three new tabs -->
