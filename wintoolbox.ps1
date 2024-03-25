@@ -69,29 +69,31 @@ Add-Type -AssemblyName PresentationFramework
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PowerShell Remote Manager" Height="450" Width="800">
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="2*" />
-        </Grid.ColumnDefinitions>
+    <Expander Header="Your Header Here" IsExpanded="False">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
 
-        <Grid Grid.Column="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" /> <!-- For static controls: TextBox and Buttons -->
-                <RowDefinition Height="*" /> <!-- For ScrollViewer, will take up remaining space -->
-            </Grid.RowDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- For static controls: TextBox and Buttons -->
+                    <RowDefinition Height="*" /> <!-- For ScrollViewer, will take up remaining space -->
+                </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0" Margin="10">
-                <TextBox Name="txtHostname" />
-                <Button Name="btnAdd" Content="Add" />
-                <Button Name="btnRemove" Content="Remove Selection" />
-            </StackPanel>
+                <StackPanel Grid.Row="0" Margin="10">
+                    <TextBox Name="txtHostname" />
+                    <Button Name="btnAdd" Content="Add" />
+                    <Button Name="btnRemove" Content="Remove Selection" />
+                </StackPanel>
 
-            <!-- ScrollViewer in a separate row, taking up the remaining space -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
-                <StackPanel Name="panelDevices" />
-            </ScrollViewer>
-        </Grid>
+                <!-- ScrollViewer in a separate row, taking up the remaining space -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
+                    <StackPanel Name="panelDevices" />
+                </ScrollViewer>
+            </Grid>
+        </Expander>
 
         <TabControl Grid.Column="1" Margin="10">
             <TabItem Header="Windows">
@@ -491,4 +493,5 @@ Write-Host "Connected with: $env:COMPUTERNAME"
 
 # Show the GUI
 $window.ShowDialog() | Out-Null
+
 
