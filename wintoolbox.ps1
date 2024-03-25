@@ -22,10 +22,14 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     # If not elevated, relaunch the script in a new elevated PowerShell session
     #TODO save script in directory, change escapedcommand to run that saved script instead of rerequest code.
     # Generate a unique temporary file name for the script
-    $tempScriptPath = "c:\Windows\WinToolBox\temp.ps1"
+    $targetDirectory = "c:\Windows\WinToolBox\temp.ps1"
+    $scriptPath = $MyInvocation.MyCommand.Path
+    $targetPath = Join-Path -Path $targetDirectory -ChildPath (Split-Path -Leaf $scriptPath)
+    Copy-Item -Path $scriptPath -Destination $targetPath
+
 
     # Script content that includes the main actions and a delayed self-deletion command
-    $escapedCommand = 'irm $tempscriptpath | iex'
+    $escapedCommand = 'irm $targetPath | iex'
     Start-Process PowerShell -ArgumentList "-Command", $escapedCommand -Verb RunAs
     # TODO Remove-Item -Path "$tempScriptPath" -Force
     exit
