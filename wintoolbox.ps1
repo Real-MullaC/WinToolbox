@@ -25,7 +25,6 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     $tempScriptPath = "c:\Windows\WinToolBox\temp.ps1"
 
     # Script content that includes the main actions and a delayed self-deletion command
-    $scriptContent = @'
     $escapedCommand = 'irm $tempscriptpath | iex'
     Start-Process PowerShell -ArgumentList "-Command", $escapedCommand -Verb RunAs
     # TODO Remove-Item -Path "$tempScriptPath" -Force
