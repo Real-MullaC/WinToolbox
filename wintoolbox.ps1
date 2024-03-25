@@ -21,8 +21,14 @@
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     # If not elevated, relaunch the script in a new elevated PowerShell session
     #TODO save script in directory, change escapedcommand to run that saved script instead of rerequest code.
-    $escapedCommand = 'irm mdiana.dev/win | iex'
+    # Generate a unique temporary file name for the script
+    $tempScriptPath = "c:\Windows\WinToolBox\temp.ps1"
+
+    # Script content that includes the main actions and a delayed self-deletion command
+    $scriptContent = @'
+    $escapedCommand = 'irm $tempscriptpath | iex'
     Start-Process PowerShell -ArgumentList "-Command", $escapedCommand -Verb RunAs
+    # TODO Remove-Item -Path "$tempScriptPath" -Force
     exit
 }
 
