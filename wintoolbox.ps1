@@ -63,7 +63,7 @@ Start-Transcript -Path "C:\Windows\WinToolBox\Logs\manager_$dateTime.log" -Appen
 
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationFramework
-
+# Header="Your Header Here"
 # WPF GUI Design in XAML
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -75,7 +75,7 @@ Add-Type -AssemblyName PresentationFramework
             <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
 
-        <Expander Header="Your Header Here" IsExpanded="False">
+        <Expander ExpandDirection="Right" IsExpanded="False">
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" /> <!-- For static controls: TextBox and Buttons -->
