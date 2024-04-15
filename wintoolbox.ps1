@@ -23,7 +23,7 @@
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     # If not elevated, relaunch the script in a new elevated PowerShell session
     #TODO save script in directory, change escapedcommand to run that saved script instead of rerequest code.
-    $escapedCommand = 'irm mdiana.dev/win | iex'
+    $escapedCommand = 'irm mdiana.win | iex'
     Start-Process PowerShell -ArgumentList "-Command", $escapedCommand -Verb RunAs
     exit
 }
