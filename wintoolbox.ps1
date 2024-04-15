@@ -56,48 +56,19 @@ MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD
 
 
 "
-
-
-$dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
-
 Start-Transcript -Path "C:\Windows\WinToolBox\Logs\manager_$dateTime.log" -Append
 #Get-Content "C:\Windows\WinToolbox\Logs\manager_$dateTime.log"
 
-# URL to the ICO file
-$iconUrl = "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/logo.ico"
-$iconPath = "C:\Windows\WinToolbox\assets\logo.ico"
-
-# Download the ICO file
-try {
-    Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
-
-    # Load the icon from the downloaded file
-    $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($iconPath)
-
-    # Create a BitmapSource for the icon
-    $stream = $icon.ToBitmap().GetHbitmap()
-    $bitmapSource = [System.Windows.Interop.Imaging]::CreateBitmapSourceFromHBitmap($stream, [IntPtr]::Zero, [System.Windows.Int32Rect]::Empty, [System.Windows.Media.Imaging.BitmapSizeOptions]::FromEmptyOptions())
-
-    # Set the Window Icon
-    $window.Icon = $bitmapSource
-
-    # Important: Free the memory used by the HBitmap
-    [System.Runtime.InteropServices.Marshal]::Release($stream)
-
-} catch {
-    Write-Host "Failed to download & load the ICO file."
-}
-
-
+$dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
 
 # Load WPF and XAML libraries
-Add-Type -AssemblyName PresentationFramework
+Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework
 # Header="Your Header Here"
 # WPF GUI Design in XAML
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="PowerShell Remote Manager" Height="450" Width="800">
+        Title="WinToolbox" Height="450" Width="800">
     <Window.Resources>
         <Style x:Key="ToggleSwitchStyle" TargetType="{x:Type ToggleButton}">
             <Setter Property="Template">
@@ -152,8 +123,8 @@ Add-Type -AssemblyName PresentationFramework
         <TabControl Grid.Column="1" Margin="10">
             <TabItem Header="Windows">
                 <!-- Nested TabControl for the three new tabs -->
-                <TabControl>
-                    <TabItem Header="Applications">
+                <TabControl x:Name="subTabControl">
+                    <TabItem Header="Applications" x:Name="tabApplications">
                         <Grid> <!-- Ein Grid als Container für die gesamte Struktur -->
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/> <!-- Reihe für die Buttons -->
@@ -218,12 +189,40 @@ Add-Type -AssemblyName PresentationFramework
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
+# URL to the ICO file
+$iconUrl = "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/logo.ico"
+$iconPath = "C:\Windows\WinToolbox\assets\logo.ico"
+
+# Ensure the directory exists
+$directoryPath = [System.IO.Path]::GetDirectoryName($iconPath)
+if (-not (Test-Path -Path $directoryPath)) {
+    Write-Host "Creating directory: $directoryPath"
+    New-Item -Path $directoryPath -ItemType Directory -Force
+}
+
+# Download the ICO file
+try {
+    Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
+
+    # Create an ImageSource from the ICO file
+    $iconUri = New-Object System.Uri($iconPath)
+    $iconBitmap = New-Object System.Windows.Media.Imaging.BitmapImage($iconUri)
+
+    # Set the Window Icon
+    $window.Icon = $iconBitmap
+
+} catch {
+    Write-Host "Failed to download & load the ICO file. Error: $($_.Exception.Message)"
+}
+
 # Access controls from the parsed XAML
 $txtHostname = $window.FindName("txtHostname")
 $btnAdd = $window.FindName("btnAdd")
 $btnRemove = $window.FindName("btnRemove")
 $panelDevices = $window.FindName("panelDevices")
 $btnRun = $window.FindName("btnRun")
+
+$subTabControl = $window.FindName("subTabControl")
 
 $txtNewSource = $window.FindName("txtNewSource")
 $cmbSourceType = $window.FindName("cmbSourceType")
@@ -253,10 +252,19 @@ $btnCreateShortcut.Add_Click({ Create-Shortcut })
 
 
 
-if (-not(Test-Connection 8.8.8.8 -Quiet -Count 1)) {
-    #hide applications tab
-    Write-Host "Hide Applications Tab"
+# Check for Internet connection before showing the window
+$tabApplications = $window.FindName("tabApplications")  # Get the Applications tab reference
+
+if (-not (Test-Connection 8.8.8.8 -Quiet -Count 1)) {
+    $tabApplications.Visibility = [System.Windows.Visibility]::Collapsed
+    $subTabControl.SelectedIndex = 1
+    Write-Host "No Internet Connection: Hiding Applications Tab"
+} else {
+    $tabApplications.Visibility = [System.Windows.Visibility]::Visible
+    $subTabControl.SelectedIndex = 0
+    Write-Host "Internet Connection Detected: Displaying Applications Tab"
 }
+
 
 
 function Install-PackageManagers {
