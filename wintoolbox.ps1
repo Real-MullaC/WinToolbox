@@ -56,7 +56,7 @@ MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD
 
 
 "
-Start-Transcript -Path "C:\Windows\WinToolBox\Logs\manager_$dateTime.log" -Append
+Start-Transcript -Path "C:\Windows\WinToolBox\Logs\WinToolBox_$dateTime.log" -Append
 #Get-Content "C:\Windows\WinToolbox\Logs\manager_$dateTime.log"
 
 $dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
