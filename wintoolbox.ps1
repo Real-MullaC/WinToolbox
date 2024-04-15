@@ -15,7 +15,9 @@
     TODO           : delete logs older than 30 days | create config for that (checkbox in settings tab (rename sources to settings) rename sources as subtab)
     TODO           : package as .exe (github & website)
     TODO           : save an additional script and put it in task scheduler. after 30 days of not running the script it deleats the logs, the task and itself.
+    TODO           : Run on system boot -> task scheduler checks for windows version change and then runs the selected/needed tweaks.
 #>
+
 
 # check if codes are running in an elevated session. if not, restart the script in an elevated session
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
@@ -25,6 +27,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     Start-Process PowerShell -ArgumentList "-Command", $escapedCommand -Verb RunAs
     exit
 }
+
 
 Write-Host "
 
@@ -60,6 +63,32 @@ $dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
 Start-Transcript -Path "C:\Windows\WinToolBox\Logs\manager_$dateTime.log" -Append
 #Get-Content "C:\Windows\WinToolbox\Logs\manager_$dateTime.log"
 
+# URL to the ICO file
+$iconUrl = "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/logo.ico"
+$iconPath = "C:\Windows\WinToolbox\assets\logo.ico"
+
+# Download the ICO file
+try {
+    Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
+
+    # Load the icon from the downloaded file
+    $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($iconPath)
+
+    # Create a BitmapSource for the icon
+    $stream = $icon.ToBitmap().GetHbitmap()
+    $bitmapSource = [System.Windows.Interop.Imaging]::CreateBitmapSourceFromHBitmap($stream, [IntPtr]::Zero, [System.Windows.Int32Rect]::Empty, [System.Windows.Media.Imaging.BitmapSizeOptions]::FromEmptyOptions())
+
+    # Set the Window Icon
+    $window.Icon = $bitmapSource
+
+    # Important: Free the memory used by the HBitmap
+    [System.Runtime.InteropServices.Marshal]::Release($stream)
+
+} catch {
+    Write-Host "Failed to download & load the ICO file."
+}
+
+
 
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationFramework
@@ -69,11 +98,36 @@ Add-Type -AssemblyName PresentationFramework
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PowerShell Remote Manager" Height="450" Width="800">
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="2*" />
-        </Grid.ColumnDefinitions>
+    <Window.Resources>
+        <Style x:Key="ToggleSwitchStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="border" Width="50" Height="25" CornerRadius="12.5" BorderBrush="Gray" BorderThickness="1">
+                            <Grid x:Name="grid" Background="{TemplateBinding Background}">
+                                <!-- Toggle button (circle) remains white in both states -->
+                                <Ellipse Fill="White" Width="23" Height="23" Margin="1" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <!-- Background changes to green when toggled on -->
+                                <Setter TargetName="border" Property="Background" Value="#33a442" />
+                                <Setter TargetName="grid" Property="HorizontalAlignment" Value="Right" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="False">
+                                <!-- Background changes to red when toggled off -->
+                                <Setter TargetName="border" Property="Background" Value="Red" />
+                                <Setter TargetName="grid" Property="HorizontalAlignment" Value="Left" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel LastChildFill="True">
 
         <Expander ExpandDirection="Right" IsExpanded="False">
             <Grid Grid.Column="0">
@@ -89,7 +143,7 @@ Add-Type -AssemblyName PresentationFramework
                 </StackPanel>
 
                 <!-- ScrollViewer in a separate row, taking up the remaining space -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
                     <StackPanel Name="panelDevices" />
                 </ScrollViewer>
             </Grid>
@@ -116,9 +170,9 @@ Add-Type -AssemblyName PresentationFramework
 
                             <!-- ScrollViewer für die Applikationsliste in der zweiten Reihe des Grids -->
                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                <StackPanel Name="appspanel">
-                                    <!-- Applikationsliste -->
-                                </StackPanel>
+                                <WrapPanel Name="appspanel" Orientation="Horizontal">
+                                        <!-- Dynamically added CheckBoxes will be placed here -->
+                                </WrapPanel>
                             </ScrollViewer>
                         </Grid>
                     </TabItem>
@@ -126,17 +180,11 @@ Add-Type -AssemblyName PresentationFramework
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Name="tweakspanel">
                                 <!-- Tweaks -->
-                                <TextBlock Text="Light/Dark Mode" FontWeight="Bold" Margin="5"/>
-                                <Button Name="btnEnableLightDarkMode" Content="Enable Dark Mode" Margin="5"/>
-                                <Button Name="btnDisableLightDarkMode" Content="Disable Dark Mode" Margin="5"/>
 
-                                <TextBlock Text="Bing Search in Start Menu" FontWeight="Bold" Margin="5"/>
-                                <Button Name="btnEnableBingSearch" Content="Enable Bing Search" Margin="5"/>
-                                <Button Name="btnDisableBingSearch" Content="Disable Bing Search" Margin="5"/>
-
-                                <TextBlock Text="Mouse Acceleration" FontWeight="Bold" Margin="5"/>
-                                <Button Name="btnEnableMouseAcceleration" Content="Enable Mouse Acceleration" Margin="5"/>
-                                <Button Name="btnDisableMouseAcceleration" Content="Disable Mouse Acceleration" Margin="5"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                    <ToggleButton Name="btnToggleDarkMode" Style="{StaticResource ToggleSwitchStyle}" Margin="10" IsChecked="False"/>
+                                    <TextBlock Name="txtToggleStatus" VerticalAlignment="Center" Text="Systeme Theme"/>
+                                </StackPanel>
 
                                 <Button Name="btnCreateShortcut" Content="Create Shortcut" Margin="5"/>
                             </StackPanel>
@@ -162,7 +210,7 @@ Add-Type -AssemblyName PresentationFramework
                 </StackPanel>
             </TabItem>
         </TabControl>
-    </Grid>
+    </DockPanel>
 </Window>
 "@
 
@@ -176,6 +224,7 @@ $btnAdd = $window.FindName("btnAdd")
 $btnRemove = $window.FindName("btnRemove")
 $panelDevices = $window.FindName("panelDevices")
 $btnRun = $window.FindName("btnRun")
+
 $txtNewSource = $window.FindName("txtNewSource")
 $cmbSourceType = $window.FindName("cmbSourceType")
 $btnAddSource = $window.FindName("btnAddSource")
@@ -186,6 +235,7 @@ $btnAddSource.Add_Click({ Add-Source })
 $btnDeleteSource.Add_Click({ Remove-Source })
 $btnAdd.Add_Click({ Add-Device })
 $btnRemove.Add_Click({ Remove-Device })
+
 $btnInstallSelection = $window.FindName("btnInstallSelection")
 $btnUninstallSelection = $window.FindName("btnUninstallSelection")
 $btnUpdateSelection = $window.FindName("btnUpdateSelection")
@@ -195,27 +245,7 @@ $btnUninstallSelection.Add_Click({ Uninstall-Selection })
 $btnUpdateSelection.Add_Click({ Update-Selection })
 $btnShowInstalled.Add_Click({ Show-Installed })
 
-
-# Light/Dark Mode
-$btnEnableLightDarkMode = $window.FindName("btnEnableLightDarkMode")
-$btnDisableLightDarkMode = $window.FindName("btnDisableLightDarkMode")
-
-$btnEnableLightDarkMode.Add_Click({ Enable-DarkMode })
-$btnDisableLightDarkMode.Add_Click({ Disable-DarkMode })
-
-# Bing Search
-$btnEnableBingSearch = $window.FindName("btnEnableBingSearch")
-$btnDisableBingSearch = $window.FindName("btnDisableBingSearch")
-
-$btnEnableBingSearch.Add_Click({ Enable-BingSearch })
-$btnDisableBingSearch.Add_Click({ Disable-BingSearch })
-
-# Mouse Acceleration
-$btnEnableMouseAcceleration = $window.FindName("btnEnableMouseAcceleration")
-$btnDisableMouseAcceleration = $window.FindName("btnDisableMouseAcceleration")
-
-$btnEnableMouseAcceleration.Add_Click({ Enable-MouseAcceleration })
-$btnDisableMouseAcceleration.Add_Click({ Disable-MouseAcceleration })
+$btnToggleDarkMode = $window.FindName("btnToggleDarkMode")
 
 # Shortcut Creation
 $btnCreateShortcut = $window.FindName("btnCreateShortcut")
@@ -229,39 +259,62 @@ if (-not(Test-Connection 8.8.8.8 -Quiet -Count 1)) {
 }
 
 
-
+function Install-PackageManagers {
+    # Check if Chocolatey is installed
+    if (-not (Get-Command "choco" -ErrorAction SilentlyContinue)) {
+        Write-Host "Chocolatey is not installed. Installing..."
+        # Installing Chocolatey
+        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+    } else {
+        Write-Host "Chocolatey is already installed."
+    }
+    
+}
 
 
 function Install-Selection {
-    write-host "installing selection .."
+    Install-PackageManagers
+
 }
 
 function Uninstall-Selection {
 
-    write-host "uninstalling selection .."
+    Install-PackageManagers
+
 }
 
 function Update-Selection {
-    write-host "updating .."
+    Install-PackageManagers
+    Write-Host ""
+    Start-Process -Verb runas -FilePath powershell.exe -ArgumentList "winget upgrade --all" -WindowStyle Minimized
+    Start-Process -Verb runas -FilePath powershell.exe -ArgumentList "choco upgrade all -y" -WindowStyle Minimized
+
 }
 
 function Show-Installed {
-    write-host "showing installed .."
-}
+    # List all general installed applications from the registry
+    Write-Host "General Installed Applications:"
+    $apps = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |
+            Where-Object { $_.DisplayName -ne $null } |
+            Select-Object DisplayName, DisplayVersion |
+            Sort-Object DisplayName
 
-function Enable-DarkMode {
-    $scriptBlock = {
-        # PowerShell command to enable dark mode
+    foreach ($app in $apps) {
+        Write-Host "$($app.DisplayName) - Version: $($app.DisplayVersion)"
     }
-    Invoke-RemoteCommand -ScriptBlock $scriptBlock
-}
 
-function Disable-DarkMode {
-    $scriptBlock = {
-        # PowerShell command to disable dark mode
+
     }
-    Invoke-RemoteCommand -ScriptBlock $scriptBlock
-}
+
+$btnToggleDarkMode.Add_Checked({
+    # Code to enable dark mode
+    $btnToggleDarkMode.Content = "Disable Dark Mode"
+})
+
+$btnToggleDarkMode.Add_Unchecked({
+    # Code to disable dark mode
+    $btnToggleDarkMode.Content = "Enable Dark Mode"
+})
 
 function Invoke-RemoteCommand {
     param(
@@ -275,34 +328,46 @@ function Invoke-RemoteCommand {
 
 
 function Create-Shortcut {
-	# ************************************************
-	#
-	$desktopPath = "$($env:USERPROFILE)\Desktop"
-	# Specify the target PowerShell command
-	$command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'irm mdiana.dev/win | iex'"
-	# Specify the path for the shortcut
-	$shortcutPath = Join-Path $desktopPath 'WinToolBox.lnk'
-	# Create a shell object
-	$shell = New-Object -ComObject WScript.Shell
-	
-	# Create a shortcut object
-	$shortcut = $shell.CreateShortcut($shortcutPath)
+    # Load Windows Forms and drawing assemblies
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
 
-	if (Test-Path -Path "c:\Windows\WinToolBox\logo.png")
-	{
-		$shortcut.IconLocation = "c:\Windows\WinToolBox\logo.png"
-	}
-	
-	# Set properties of the shortcut
-	$shortcut.TargetPath = "powershell.exe"
-	$shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
-	# Save the shortcut
-	$shortcut.Save()
-	Write-Host "Shortcut created at: $shortcutPath"
-	# 
-	# ************************************************
+    # Create a Save File Dialog
+    $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveFileDialog.initialDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+    $saveFileDialog.filter = "Shortcut files (*.lnk)|*.lnk"
+    $saveFileDialog.FileName = "WinToolBox.lnk"
+
+    # Show the Save File Dialog
+    if ($saveFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $shortcutPath = $saveFileDialog.FileName
+
+        # Specify the target PowerShell command
+        $command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'irm mdiana.dev/win | iex'"
+
+        # Create a shell object
+        $shell = New-Object -ComObject WScript.Shell
+        
+        # Create a shortcut object
+        $shortcut = $shell.CreateShortcut($shortcutPath)
+
+        if (Test-Path -Path "c:\Windows\WinToolBox\assets\logo.ico") {
+            $shortcut.IconLocation = "c:\Windows\WinToolBox\assets\logo.ico"
+        } else {
+            $shortcut.IconLocation = "powershell.exe"
+        }
+        
+        # Set properties of the shortcut
+        $shortcut.TargetPath = "powershell.exe"
+        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"$command`""
+        
+        # Save the shortcut
+        $shortcut.Save()
+        Write-Host "Shortcut created at: $shortcutPath"
+    } else {
+        Write-Host "User cancelled the shortcut creation."
+    }
 }
-
 
 
 
@@ -348,34 +413,35 @@ foreach ($jsonUrl in $jsonUrls) {
 $appspanel = $window.FindName("appspanel")
 
 
-
 # Clear existing items in appspanel to avoid duplicates
 $appspanel.Children.Clear()
 
-# Populate the appspanel with categories and their applications, each in an Expander
-foreach ($category in $appsByCategory.Keys) {
+# Sort categories alphabetically before creating expanders
+$sortedCategories = $appsByCategory.Keys | Sort-Object
+
+foreach ($category in $sortedCategories) {
     $expander = New-Object System.Windows.Controls.Expander
     $expander.Header = $category
     $expander.IsExpanded = $true
 
     $stackPanel = New-Object System.Windows.Controls.StackPanel
 
-    # Add application checkboxes under this category
-    foreach ($app in $appsByCategory[$category]) {
+    # Sort apps within the category alphabetically by content
+    $sortedApps = $appsByCategory[$category] | Sort-Object { $_.Value.content }
+
+    foreach ($app in $sortedApps) {
         $checkBox = New-Object System.Windows.Controls.CheckBox
 
-        # Create a StackPanel to hold the text and the hyperlink
+        # StackPanel to hold the text and the hyperlink
         $innerStackPanel = New-Object System.Windows.Controls.StackPanel
         $innerStackPanel.Orientation = "Horizontal"
 
-        # Create a TextBlock for the app's content
+        # TextBlock for the app's content
         $textBlock = New-Object System.Windows.Controls.TextBlock
         $textBlock.Text = $app.Value.content
-
-        # Add the TextBlock to the inner StackPanel
         $innerStackPanel.Children.Add($textBlock) | Out-Null
 
-        # Add ToolTip
+        # ToolTip
         $toolTip = New-Object System.Windows.Controls.ToolTip
         $toolTip.Content = $app.Value.description
         $checkBox.ToolTip = $toolTip
@@ -384,27 +450,22 @@ foreach ($category in $appsByCategory.Keys) {
         $checkBox.Margin = New-Object System.Windows.Thickness(5)
         $stackPanel.Children.Add($checkBox) | Out-Null
 
-                # Create the hyperlink
+        # Hyperlink
         $hyperlink = New-Object System.Windows.Documents.Hyperlink
         $hyperlink.Inlines.Add(" ?")
         $hyperlink.NavigateUri = New-Object System.Uri($app.Value.link)
-
-        # Attach an event handler to the hyperlink
         $hyperlink.Add_RequestNavigate({
             param($sender, $e)
             Start-Process $e.Uri.AbsoluteUri
         })
-        
-        # Add the Hyperlink to the TextBlock
         $textBlock.Inlines.Add($hyperlink)
-
-        # Remove the underline from the hyperlink
         $hyperlink.TextDecorations = $null
     }
 
     $expander.Content = $stackPanel
     $appspanel.Children.Add($expander) | Out-Null
 }
+
 
 
 # Window-level event handler for hyperlink clicks
@@ -487,11 +548,11 @@ function Remove-Device {
 $checkbox = New-Object System.Windows.Controls.CheckBox
 $checkbox.Content = $env:COMPUTERNAME
 $checkbox.Margin = New-Object System.Windows.Thickness(5)
+$checkbox.IsChecked = $true  # Ensures the checkbox is checked at creation
 $panelDevices.Children.Add($checkbox) | Out-Null
 Write-Host "Connected with: $env:COMPUTERNAME"
 
 
+
 # Show the GUI
 $window.ShowDialog() | Out-Null
-
-
