@@ -178,20 +178,49 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
                             </ScrollViewer>
                         </Grid>
                     </TabItem>
-                    <TabItem Header="Tweaks">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Name="tweakspanel">
-                                <!-- Tweaks -->
 
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                                    <ToggleButton Name="btnToggleDarkMode" Style="{StaticResource ToggleSwitchStyle}" Margin="10" IsChecked="False"/>
-                                    <TextBlock Name="txtToggleStatus" VerticalAlignment="Center" Text="Dark Mode"/>
+                    <TabItem Header="Tweaks">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- First Column for checkboxes and buttons -->
+                            <Grid Grid.Column="0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Checkboxes StackPanel -->
+                                <StackPanel Name="tweaksPanel" Margin="10">
+                                    <!-- Checkboxes will be added here in the script -->
                                 </StackPanel>
 
-                                <Button Name="btnCreateShortcut" Content="Create Shortcut" Margin="5"/>
+                                <!-- Buttons at the bottom -->
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
+                                    <Button Name="btnRunTweaks" Content="Run Selected" Margin="5" Width="100" />
+                                    <Button Name="btnUndoTweaks" Content="Undo Selected" Margin="5" Width="100" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Second Column for toggle switch and other controls -->
+                            <StackPanel Grid.Column="1" Margin="10">
+                                <ToggleButton Name="btnToggleDarkMode" Style="{StaticResource ToggleSwitchStyle}" Margin="10" IsChecked="False" HorizontalAlignment="Left"/>
+                                <TextBlock Name="txtToggleTheme" VerticalAlignment="Center" Text="Dark Mode" HorizontalAlignment="Left"/>
+                                
+                                <ToggleButton Name="btnToggleBingSearch" Style="{StaticResource ToggleSwitchStyle}" Margin="10" IsChecked="False" HorizontalAlignment="Left"/>
+                                <TextBlock Name="txtToggleBingSearchStatus" VerticalAlignment="Center" Text="Bing Search in Start Menu" HorizontalAlignment="Left"/>
+
+
+                                <Button Name="btnCreateShortcut" Content="Create Shortcut" Margin="5" HorizontalAlignment="Left"/>
                             </StackPanel>
-                        </ScrollViewer>
+
+                        </Grid>
                     </TabItem>
+
+
                 </TabControl>
             </TabItem>
             <TabItem Header="Sources">
@@ -267,11 +296,12 @@ $btnDeleteSource.Add_Click({ Remove-Source })
 $btnAdd.Add_Click({ Add-Device })
 $btnRemove.Add_Click({ Remove-Device })
 
+
 $btnInstallSelection = $window.FindName("btnInstallSelection")
+$btnInstallSelection.Add_Click({ Install-SelectedApps })
 $btnUninstallSelection = $window.FindName("btnUninstallSelection")
 $btnUpdateSelection = $window.FindName("btnUpdateSelection")
 $btnShowInstalled = $window.FindName("btnShowInstalled")
-$btnInstallSelection.Add_Click({ Install-Selection })
 $btnUninstallSelection.Add_Click({ Uninstall-Selection })
 $btnUpdateSelection.Add_Click({ Update-Selection })
 $btnShowInstalled.Add_Click({ Show-Installed })
@@ -323,23 +353,47 @@ function Install-PackageManagers {
 }
 
 
-function Install-Selection {
-    Install-PackageManagers
 
+function Modify-SelectedApps($action) {
+    # action = install / uninstall / upgrade
+    # Access each Expander in appspanel, which contains each category
+    foreach ($expander in $appspanel.Children) {
+        $stackPanel = $expander.Content
+        # Check each checkbox in each category's StackPanel
+        foreach ($checkBox in $stackPanel.Children) {
+            if ($checkBox.IsChecked) {
+                $appInfo = $checkBox.Tag  # Assuming you have stored app info in the Tag property during checkbox creation
+                try {
+                    if ($appInfo.winget) { 
+                        $command = "winget $($action) $($appInfo.winget) -e"
+                        Write-Host "Using winget to $($action) $($checkBox.Content)"
+                        Invoke-Expression $command
+                    } elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
+                        $command = "choco $($action) $($appInfo.choco) -y"
+                        Write-Host "Using Chocolatey to $($action) $($checkBox.Content)"
+                        Invoke-Expression $command
+                    } else {
+                        Write-Host "No method found for $($checkBox.Content)"
+                    }
+                } catch {
+                    Write-Host "Failed to $($action) $($checkBox.Content). Error: $($_.Exception.Message)"
+                }
+            }
+        }
+    }
+}
+
+
+function Install-SelectedApps {
+    Modify-SelectedApps "install"
 }
 
 function Uninstall-Selection {
-
-    Install-PackageManagers
-
+    Modify-SelectedApps "uninstall"
 }
 
 function Update-Selection {
-    Install-PackageManagers
-    Write-Host ""
-    Start-Process -Verb runas -FilePath powershell.exe -ArgumentList "winget upgrade --all" -WindowStyle Minimized
-    Start-Process -Verb runas -FilePath powershell.exe -ArgumentList "choco upgrade all -y" -WindowStyle Minimized
-
+    Modify-SelectedApps "upgrade"
 }
 
 function Show-Installed {
@@ -353,9 +407,7 @@ function Show-Installed {
     foreach ($app in $apps) {
         Write-Host "$($app.DisplayName) - Version: $($app.DisplayVersion)"
     }
-
-
-    }
+}
 
 
 
@@ -370,8 +422,6 @@ function Get-SystemTheme {
     }
 }
 
-
-
 $btnToggleDarkMode = $window.FindName("btnToggleDarkMode")
 $systemTheme = Get-SystemTheme
 if ($systemTheme -eq "Dark") {
@@ -382,7 +432,105 @@ if ($systemTheme -eq "Dark") {
     $btnToggleDarkMode.Content = "Enable Dark Mode"
 }
 
+$btnToggleBingSearch = $window.FindName("btnToggleBingSearch")
+$btnToggleBingSearch.Add_Checked({
+    # Enable Bing Search in Start Menu
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 1
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Value 1
+    $btnToggleBingSearch.Content = "Disable Bing Search"
+})
 
+$btnToggleBingSearch.Add_Unchecked({
+    # Disable Bing Search in Start Menu
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Value 0
+    $btnToggleBingSearch.Content = "Enable Bing Search"
+})
+
+$bingSearchEnabled = Get-ItemPropertyValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled"
+if ($bingSearchEnabled -eq 1) {
+    $btnToggleBingSearch.IsChecked = $true
+    $btnToggleBingSearch.Content = "Disable Bing Search"
+} else {
+    $btnToggleBingSearch.IsChecked = $false
+    $btnToggleBingSearch.Content = "Enable Bing Search"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function Add-TweakOptions {
+    $tweaksPanel = $window.FindName("tweaksPanel")
+
+    if ($null -eq $tweaksPanel) {
+        Write-Host "Tweaks panel not found."
+        return
+    }
+
+    $tweakOptions = @(
+        @{ Name="Enable Feature X"; Description="Enables the experimental Feature X."; Tooltip="Be cautious, this is experimental."},
+        @{ Name="Enable Logging"; Description="Starts detailed logging of the application."; Tooltip="This may impact performance."},
+        @{ Name="Set Services to Manual"; Description="Services -> Manual"; Tooltip="Stops Services from running if they are not needed."}
+    )
+
+    foreach ($tweak in $tweakOptions) {
+        $checkBox = New-Object System.Windows.Controls.CheckBox
+        $checkBox.Content = $tweak.Name
+        $checkBox.Margin = New-Object System.Windows.Thickness(5)
+
+        # ToolTip setup
+        $toolTip = New-Object System.Windows.Controls.ToolTip
+        $toolTip.Content = $tweak.Tooltip
+        $checkBox.ToolTip = $toolTip
+
+        # Add CheckBox to the StackPanel
+        $tweaksPanel.Children.Add($checkBox) | Out-Null
+    }
+}
+
+Add-TweakOptions
+
+
+# Function to handle running selected tweaks
+function Run-SelectedTweaks {
+    # Example of checking which checkboxes are checked and acting on them
+    $tweaksPanel.Children | Where-Object { $_ -is [System.Windows.Controls.CheckBox] -and $_.IsChecked } | ForEach-Object {
+        Write-Host "Running tweak for: $($_.Content)"
+        # Insert logic to apply the tweak
+    }
+}
+
+# Function to handle undoing selected tweaks
+function Undo-SelectedTweaks {
+    # Example of checking which checkboxes are checked and acting on them
+    $tweaksPanel.Children | Where-Object { $_ -is [System.Windows.Controls.CheckBox] -and $_.IsChecked } | ForEach-Object {
+        Write-Host "Undoing tweak for: $($_.Content)"
+        # Insert logic to revert the tweak
+    }
+}
+
+# Adding click event handlers to buttons
+$btnRunTweaks = $window.FindName("btnRunTweaks")
+$btnUndoTweaks = $window.FindName("btnUndoTweaks")
+
+$btnRunTweaks.Add_Click({
+    Run-SelectedTweaks
+})
+
+$btnUndoTweaks.Add_Click({
+    Undo-SelectedTweaks
+})
 
 
 $btnToggleDarkMode.Add_Checked({
@@ -479,6 +627,13 @@ foreach ($jsonUrl in $jsonUrls) {
     # Organize applications by category
     foreach ($app in $jsonContent.PSObject.Properties) {
         $category = $app.Value.category
+        $choco = $app.Value.choco
+        $winget = $app.Value.winget
+        $link = $app.Value.link
+        $description = $app.Value.description
+        $content = $app.Value.content
+        #write-Host $content $description $link $choco $winget
+        #write-host ""
         if (-not $category) {
             $category = "Uncategorized" # Assign a default category if null or empty
         }
@@ -525,10 +680,13 @@ foreach ($category in $sortedCategories) {
         # ToolTip
         $toolTip = New-Object System.Windows.Controls.ToolTip
         $toolTip.Content = $app.Value.description
-        $checkBox.ToolTip = $toolTip
+        $checkBox.ToolTip = $app.Value.description
 
-        $checkBox.Content = $innerStackPanel
+        $checkBox.Content = $app.Value.content
         $checkBox.Margin = New-Object System.Windows.Thickness(5)
+        $checkBox.Tag = @{ "choco" = $app.Value.choco; "winget" = $app.Value.winget }
+        #write-host $app.Value.choco 
+        #write-host $app.Value.winget
         $stackPanel.Children.Add($checkBox) | Out-Null
 
         # Hyperlink
@@ -548,7 +706,6 @@ foreach ($category in $sortedCategories) {
 }
 
 
-
 # Window-level event handler for hyperlink clicks
 $window.Add_PreviewMouseLeftButtonDown({
     $pos = [Windows.Input.Mouse]::GetPosition($window)
@@ -561,6 +718,7 @@ $window.Add_PreviewMouseLeftButtonDown({
         }
     }
 })
+
 
 function Add-Source {
     $newSource = $txtNewSource.Text
