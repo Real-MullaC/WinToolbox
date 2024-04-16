@@ -90,11 +90,11 @@ function Ensure-PsModule($moduleName) {
 }
 # Call the function to ensure PsIni module is ready
 Ensure-PsModule 'psini'
-Ensure-PsModule 'PoshTaskbarItem'
+#Ensure-PsModule 'PoshTaskbarItem'
 
 # Load WPF and XAML libraries
-Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework
-# Header="Your Header Here"
+Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, System.Drawing, WindowsFormsIntegration
+
 # WPF GUI Design in XAML
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -185,7 +185,7 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework
 
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                                     <ToggleButton Name="btnToggleDarkMode" Style="{StaticResource ToggleSwitchStyle}" Margin="10" IsChecked="False"/>
-                                    <TextBlock Name="txtToggleStatus" VerticalAlignment="Center" Text="Systeme Theme"/>
+                                    <TextBlock Name="txtToggleStatus" VerticalAlignment="Center" Text="Dark Mode"/>
                                 </StackPanel>
 
                                 <Button Name="btnCreateShortcut" Content="Create Shortcut" Margin="5"/>
@@ -223,6 +223,7 @@ $window = [Windows.Markup.XamlReader]::Load($reader)
 # URL to the ICO file
 $iconUrl = "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/logo.ico"
 $iconPath = "C:\Windows\WinToolbox\assets\logo.ico"
+
 
 # Ensure the directory exists
 $directoryPath = [System.IO.Path]::GetDirectoryName($iconPath)
@@ -274,8 +275,6 @@ $btnInstallSelection.Add_Click({ Install-Selection })
 $btnUninstallSelection.Add_Click({ Uninstall-Selection })
 $btnUpdateSelection.Add_Click({ Update-Selection })
 $btnShowInstalled.Add_Click({ Show-Installed })
-
-$btnToggleDarkMode = $window.FindName("btnToggleDarkMode")
 
 # Shortcut Creation
 $btnCreateShortcut = $window.FindName("btnCreateShortcut")
@@ -358,15 +357,47 @@ function Show-Installed {
 
     }
 
+
+
+function Get-SystemTheme {
+    $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    $systemThemeValue = Get-ItemPropertyValue -Path $key -Name "SystemUsesLightTheme"
+
+    if ($systemThemeValue -eq 0) {
+        return "Dark"
+    } else {
+        return "Light"
+    }
+}
+
+
+
+$btnToggleDarkMode = $window.FindName("btnToggleDarkMode")
+$systemTheme = Get-SystemTheme
+if ($systemTheme -eq "Dark") {
+    $btnToggleDarkMode.IsChecked = $true
+    $btnToggleDarkMode.Content = "Disable Dark Mode"
+} else {
+    $btnToggleDarkMode.IsChecked = $false
+    $btnToggleDarkMode.Content = "Enable Dark Mode"
+}
+
+
+
+
 $btnToggleDarkMode.Add_Checked({
-    # Code to enable dark mode
+    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "SystemUsesLightTheme" -Value 0
+    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "AppsUseLightTheme" -Value 0  
     $btnToggleDarkMode.Content = "Disable Dark Mode"
 })
 
 $btnToggleDarkMode.Add_Unchecked({
-    # Code to disable dark mode
+    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "SystemUsesLightTheme" -Value 1
+    Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "AppsUseLightTheme" -Value 1  
     $btnToggleDarkMode.Content = "Enable Dark Mode"
 })
+
+
 
 function Invoke-RemoteCommand {
     param(
@@ -612,6 +643,4 @@ $window.Add_Closing({
     #Write-Host "Saved expander state to $iniPath"
 })
 
-
-# Show the GUI
-$window.ShowDialog() | Out-Null
+$window.ShowDialog()
