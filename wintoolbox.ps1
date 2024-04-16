@@ -246,16 +246,6 @@ try {
     Write-Host "Failed to download & load the ICO file. Error: $($_.Exception.Message)"
 }
 
-
-
-
-
-
-
-
-
-
-
 # Access controls from the parsed XAML
 $txtHostname = $window.FindName("txtHostname")
 $btnAdd = $window.FindName("btnAdd")
@@ -304,9 +294,6 @@ if (Test-Path $iniPath) {
     }
     #Write-Host "Loaded expander state from $iniPath"
 }
-
-
-
 
 
 # Check for Internet connection before showing the window
@@ -433,9 +420,6 @@ function Create-Shortcut {
         Write-Host "User cancelled the shortcut creation."
     }
 }
-
-Add-TaskbarIcon -IconPath $iconpath
-Set-TaskbarIconBadge -Value "10"
 
 
 $jsonUrls = @(
