@@ -19,6 +19,7 @@
 #>
 
 
+
 # check if codes are running in an elevated session. if not, restart the script in an elevated session
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     # If not elevated, relaunch the script in a new elevated PowerShell session
@@ -63,17 +64,16 @@ Start-Transcript -Path "C:\Windows\WinToolBox\Logs\WinToolBox_$dateTime.log" -Ap
 
 
 # Function to install and import PsIni module
-function Ensure-PsIniModule {
-    $moduleName = "PsIni"
+function Ensure-PsModule($moduleName) {
     $module = Get-Module -ListAvailable -Name $moduleName
 
     # Check if the module is not installed
     if (-not $module) {
-        # Install PsIni from the PowerShell Gallery
+        # Install Module from the PowerShell Gallery
+        Write-Host ""
         Write-Host "Installing $moduleName module..."
         try {
             Install-Module -Name $moduleName -Repository PSGallery -Force -ErrorAction Stop
-            Write-Host ""
             Write-Host "$moduleName module installed successfully."
         } catch {
             Write-Host "Failed to install $moduleName module. Error: $($_.Exception.Message)"
@@ -82,16 +82,15 @@ function Ensure-PsIniModule {
     }
 
     try {
-        Write-Host ""
         Import-Module -Name $moduleName
         Write-Host "$moduleName module imported successfully."
     } catch {
-        Write-Host ""
         Write-Host "Failed to import $moduleName module. Error: $($_.Exception.Message)"
     }
 }
 # Call the function to ensure PsIni module is ready
-Ensure-PsIniModule
+Ensure-PsModule 'psini'
+Ensure-PsModule 'PoshTaskbarItem'
 
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework
@@ -246,6 +245,15 @@ try {
 } catch {
     Write-Host "Failed to download & load the ICO file. Error: $($_.Exception.Message)"
 }
+
+
+
+
+
+
+
+
+
 
 
 # Access controls from the parsed XAML
@@ -622,3 +630,6 @@ $window.Add_Closing({
 
 # Show the GUI
 $window.ShowDialog() | Out-Null
+
+Add-TaskbarIcon -IconPath $iconpath
+Set-TaskbarIconBadge -Value "10"
