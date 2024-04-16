@@ -56,10 +56,42 @@ MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD
 
 
 "
+
+$dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
 Start-Transcript -Path "C:\Windows\WinToolBox\Logs\WinToolBox_$dateTime.log" -Append
 #Get-Content "C:\Windows\WinToolbox\Logs\manager_$dateTime.log"
 
-$dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
+
+# Function to install and import PsIni module
+function Ensure-PsIniModule {
+    $moduleName = "PsIni"
+    $module = Get-Module -ListAvailable -Name $moduleName
+
+    # Check if the module is not installed
+    if (-not $module) {
+        # Install PsIni from the PowerShell Gallery
+        Write-Host "Installing $moduleName module..."
+        try {
+            Install-Module -Name $moduleName -Repository PSGallery -Force -ErrorAction Stop
+            Write-Host ""
+            Write-Host "$moduleName module installed successfully."
+        } catch {
+            Write-Host "Failed to install $moduleName module. Error: $($_.Exception.Message)"
+            return
+        }
+    }
+
+    try {
+        Write-Host ""
+        Import-Module -Name $moduleName
+        Write-Host "$moduleName module imported successfully."
+    } catch {
+        Write-Host ""
+        Write-Host "Failed to import $moduleName module. Error: $($_.Exception.Message)"
+    }
+}
+# Call the function to ensure PsIni module is ready
+Ensure-PsIniModule
 
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework
@@ -74,10 +106,10 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ToggleButton}">
-                        <Border x:Name="border" Width="50" Height="25" CornerRadius="12.5" BorderBrush="Gray" BorderThickness="1">
-                            <Grid x:Name="grid" Background="{TemplateBinding Background}">
-                                <!-- Toggle button (circle) remains white in both states -->
-                                <Ellipse Fill="White" Width="23" Height="23" Margin="1" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        <Border x:Name="border" Width="50" Height="25" CornerRadius="12.5" BorderBrush="#00FFFFFF" BorderThickness="1"> <!-- or gray -->
+                            <Grid x:Name="grid">
+                                <!-- Toggle button (circle) is always white -->
+                                <Ellipse Fill="White" Width="20" Height="20" Margin="1" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -100,7 +132,7 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework
 
     <DockPanel LastChildFill="True">
 
-        <Expander ExpandDirection="Right" IsExpanded="False">
+        <Expander Name="DeviceMGMTexpander" ExpandDirection="Right" IsExpanded="False">
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" /> <!-- For static controls: TextBox and Buttons -->
@@ -215,6 +247,7 @@ try {
     Write-Host "Failed to download & load the ICO file. Error: $($_.Exception.Message)"
 }
 
+
 # Access controls from the parsed XAML
 $txtHostname = $window.FindName("txtHostname")
 $btnAdd = $window.FindName("btnAdd")
@@ -252,6 +285,22 @@ $btnCreateShortcut.Add_Click({ Create-Shortcut })
 
 
 
+$iniPath = "C:\Windows\WinToolBox\config.ini"
+if (Test-Path $iniPath) {
+    $iniContent = Get-IniContent -FilePath $iniPath
+    $DeviceMGMTexpander = $window.FindName("DeviceMGMTexpander")
+    if ($iniContent.DeviceMGMTexpander -and $iniContent.DeviceMGMTexpander.expanded -eq "True") {
+        $DeviceMGMTexpander.IsExpanded = $true
+    } else {
+        $DeviceMGMTexpander.IsExpanded = $false
+    }
+    #Write-Host "Loaded expander state from $iniPath"
+}
+
+
+
+
+
 # Check for Internet connection before showing the window
 $tabApplications = $window.FindName("tabApplications")  # Get the Applications tab reference
 
@@ -262,7 +311,7 @@ if (-not (Test-Connection 8.8.8.8 -Quiet -Count 1)) {
 } else {
     $tabApplications.Visibility = [System.Windows.Visibility]::Visible
     $subTabControl.SelectedIndex = 0
-    Write-Host "Internet Connection Detected: Displaying Applications Tab"
+    #Write-Host "Internet Connection Detected: Displaying Applications Tab"
 }
 
 
@@ -560,6 +609,15 @@ $checkbox.IsChecked = $true  # Ensures the checkbox is checked at creation
 $panelDevices.Children.Add($checkbox) | Out-Null
 Write-Host "Connected with: $env:COMPUTERNAME"
 
+
+$window.Add_Closing({
+    $iniPath = "C:\Windows\WinToolBox\config.ini"
+    $DeviceMGMTexpander = $window.FindName("DeviceMGMTexpander")
+    $expanderState = $DeviceMGMTexpander.IsExpanded
+    $iniContent = @{"DeviceMGMTexpander" = @{"expanded" = $expanderState}}
+    $iniContent | Out-IniFile -FilePath $iniPath -Force
+    #Write-Host "Saved expander state to $iniPath"
+})
 
 
 # Show the GUI
