@@ -434,7 +434,8 @@ function Create-Shortcut {
     }
 }
 
-
+Add-TaskbarIcon -IconPath $iconpath
+Set-TaskbarIconBadge -Value "10"
 
 
 $jsonUrls = @(
@@ -630,6 +631,3 @@ $window.Add_Closing({
 
 # Show the GUI
 $window.ShowDialog() | Out-Null
-
-Add-TaskbarIcon -IconPath $iconpath
-Set-TaskbarIconBadge -Value "10"
