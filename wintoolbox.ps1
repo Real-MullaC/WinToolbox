@@ -164,10 +164,11 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
 
                             <!-- Buttons oben im Grid -->
                             <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="10">
-                                <Button Name="btnInstallSelection" Content="Install Selection" Margin="5"/>
+                                <Button Name="btnInstallSelection" Content="Install/Upgrade Selection" Margin="5"/>
+                                <Button Name="btnUpdateAll" Content="Update All" Margin="5"/>
                                 <Button Name="btnUninstallSelection" Content="Uninstall Selection" Margin="5"/>
-                                <Button Name="btnUpdateSelection" Content="Update Selection" Margin="5"/>
                                 <Button Name="btnShowInstalled" Content="Show Installed" Margin="5"/>
+                                <Button Name="btnClearSelection" Content="Clear Selection" Margin="5"/>
                             </StackPanel>
 
                             <!-- ScrollViewer für die Applikationsliste in der zweiten Reihe des Grids -->
@@ -300,10 +301,10 @@ $btnRemove.Add_Click({ Remove-Device })
 $btnInstallSelection = $window.FindName("btnInstallSelection")
 $btnInstallSelection.Add_Click({ Install-SelectedApps })
 $btnUninstallSelection = $window.FindName("btnUninstallSelection")
-$btnUpdateSelection = $window.FindName("btnUpdateSelection")
+$btnUpdateAll = $window.FindName("btnUpdateAll")
+$btnUpdateAll.Add_Click({ Update-AllApps })
 $btnShowInstalled = $window.FindName("btnShowInstalled")
 $btnUninstallSelection.Add_Click({ Uninstall-Selection })
-$btnUpdateSelection.Add_Click({ Update-Selection })
 $btnShowInstalled.Add_Click({ Show-Installed })
 
 # Shortcut Creation
@@ -339,44 +340,123 @@ if (-not (Test-Connection 8.8.8.8 -Quiet -Count 1)) {
 }
 
 
-
 function Install-PackageManagers {
     # Check if Chocolatey is installed
-    if (-not (Get-Command "choco" -ErrorAction SilentlyContinue)) {
-        Write-Host "Chocolatey is not installed. Installing..."
-        # Installing Chocolatey
-        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        $currentVersion = choco --version | Out-String
+        #Write-Host "Current Chocolatey version: $currentVersion"
+
+        try {
+            #Write-Host "Checking for updates for Chocolatey..."
+            $output = choco upgrade chocolatey -y | Out-String  # Capture the full output as a string
+            if ($output -like "*is the latest version available based on your source(s)*") {
+                Write-Host "Chocolatey is installed. Version: $currentVersion"
+            } elseif ($output -like "*Chocolatey upgraded 0/1 packages*") {
+                Write-Host "No updates were needed; Chocolatey is already at the latest version. Version: $currentVersion"
+            } elseif ($output -like "*Chocolatey upgraded 1/1 packages*" -or $output -like "*upgraded*") {
+                $newVersion = choco --version | Out-String
+                Write-Host "Chocolatey has been updated to the latest version: $newVersion"
+            } else {
+                Write-Host "Chocolatey update status is unclear. Check the output above for more details."
+            }
+        } catch {
+            Write-Host "An error occurred while trying to update Chocolatey: $($_.Exception.Message)"
+        }
     } else {
-        Write-Host "Chocolatey is already installed."
+        Write-Host "Chocolatey is not installed. Installing now."
+        try {
+            # Installing Chocolatey
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+            $installedVersion = choco --version | Out-String
+            Write-Host "Chocolatey installed successfully. Version: $installedVersion"
+        } catch {
+            Write-Host "Failed to install Chocolatey: $($_.Exception.Message)"
+        }
     }
-    
+
+    # Check and install/update winget
+    try {
+        $wingetInstalled = winget --version
+        if ($wingetInstalled) {
+            Write-Host "winget is installed. Version: $wingetInstalled"
+        } else {
+            throw "winget not installed"
+        }
+    } catch {
+        Write-Host "Attempting to install/update winget from GitHub..."
+        try {
+            Invoke-WebRequest -Uri "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller.msixbundle" -OutFile "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle"
+            Add-AppxPackage -Path "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle" -ForceApplicationShutdown
+            Write-Host "winget installed/updated successfully from GitHub."
+        } catch {
+            Write-Host "Failed to install/update winget from GitHub. Error: $($_.Exception.Message)"
+            if (Get-Command choco -ErrorAction SilentlyContinue) {
+                try {
+                    choco install winget -y
+                    Write-Host "winget installed/updated successfully from Chocolatey."
+                } catch {
+                    Write-Host "Failed to install/update winget from Chocolatey. Error: $($_.Exception.Message)"
+                }
+            }
+        }
+    }
 }
 
-
+Install-PackageManagers
 
 function Modify-SelectedApps($action) {
-    # action = install / uninstall / upgrade
-    # Access each Expander in appspanel, which contains each category
     foreach ($expander in $appspanel.Children) {
         $stackPanel = $expander.Content
-        # Check each checkbox in each category's StackPanel
         foreach ($checkBox in $stackPanel.Children) {
             if ($checkBox.IsChecked) {
                 $appInfo = $checkBox.Tag  # Assuming you have stored app info in the Tag property during checkbox creation
                 try {
-                    if ($appInfo.winget) { 
-                        $command = "winget $($action) $($appInfo.winget) -e"
-                        Write-Host "Using winget to $($action) $($checkBox.Content)"
-                        Invoke-Expression $command
-                    } elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
-                        $command = "choco $($action) $($appInfo.choco) -y"
-                        Write-Host "Using Chocolatey to $($action) $($checkBox.Content)"
-                        Invoke-Expression $command
-                    } else {
-                        Write-Host "No method found for $($checkBox.Content)"
+                    switch ($action) {
+                        "modify" {
+                            if ($appInfo.winget) {
+                                $installedPackage = winget list --id $appInfo.winget -e | Where-Object { $_ -match $appInfo.winget }
+                                if ($installedPackage) {
+                                    $command = "winget upgrade $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements"
+                                    Write-Host "Upgrading $($checkBox.Content) using winget in a new PowerShell window"
+                                } else {
+                                    $command = "winget install $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements"
+                                    Write-Host "Installing $($checkBox.Content) using winget in a new PowerShell window"
+                                }
+                                Start-Process "powershell" -ArgumentList "-NoExit", "-Command", $command -WindowStyle Normal
+                            } elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
+                                $installedPackage = choco list --localonly | Where-Object { $_ -like "*$($appInfo.choco)*" }
+                                if ($installedPackage) {
+                                    $command = "choco upgrade $($appInfo.choco) -y"
+                                    Write-Host "Upgrading $($checkBox.Content) using Chocolatey in a new PowerShell window"
+                                } else {
+                                    $command = "choco install $($appInfo.choco) -y"
+                                    Write-Host "Installing $($checkBox.Content) using Chocolatey in a new PowerShell window"
+                                }
+                                Start-Process "powershell" -ArgumentList "-NoExit", "-Command", $command -WindowStyle Normal
+                            } else {
+                                Write-Host "No method found for $($checkBox.Content)"
+                            }
+                        }
+                        "uninstall" {
+                            if ($appInfo.winget) {
+                                $command = "winget uninstall --id $($appInfo.winget) --accept-source-agreements --accept-package-agreements"
+                                Write-Host "Uninstalling $($checkBox.Content) using winget in a new PowerShell window"
+                            } elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
+                                $command = "choco uninstall $($appInfo.choco) -y"
+                                Write-Host "Uninstalling $($checkBox.Content) using Chocolatey in a new PowerShell window"
+                            } else {
+                                Write-Host "No uninstall method found for $($checkBox.Content)"
+                            }
+                            Start-Process "powershell" -ArgumentList "-NoExit", "-Command", $command -WindowStyle Normal
+                        }
+                        default {
+                            Write-Host "Unsupported action: $action"
+                        }
                     }
                 } catch {
-                    Write-Host "Failed to $($action) $($checkBox.Content). Error: $($_.Exception.Message)"
+                    Write-Host "Failed to $action $($checkBox.Content). Error: $($_.Exception.Message)"
                 }
             }
         }
@@ -384,30 +464,73 @@ function Modify-SelectedApps($action) {
 }
 
 
+
+
+
 function Install-SelectedApps {
-    Modify-SelectedApps "install"
+    Modify-SelectedApps "modify"
 }
 
 function Uninstall-Selection {
     Modify-SelectedApps "uninstall"
 }
 
-function Update-Selection {
-    Modify-SelectedApps "upgrade"
-}
+function Update-AllApps {
+    foreach ($expander in $appspanel.Children) {
+        $stackPanel = $expander.Content
+        foreach ($checkBox in $stackPanel.Children) {
 
-function Show-Installed {
-    # List all general installed applications from the registry
-    Write-Host "General Installed Applications:"
-    $apps = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |
-            Where-Object { $_.DisplayName -ne $null } |
-            Select-Object DisplayName, DisplayVersion |
-            Sort-Object DisplayName
+                $appInfo = $checkBox.Tag  # Assuming you have stored app info in the Tag property during checkbox creation
+                try {
+                    if ($appInfo.winget) { 
+                        winget upgrade --all --accept-source-agreements --accept-package-agreements --scope=machine --silent
+                    } elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
+                        $command = "choco upgrade $($appInfo.choco) -y"
+                        Write-Host "Using Chocolatey to upgrade $($checkBox.Content)"
+                        Invoke-Expression $command
+                    } else {
+                        Write-Host "No method found for $($checkBox.Content)"
+                    }
+                } catch {
+                    Write-Host "Failed to upgrade $($checkBox.Content). Error: $($_.Exception.Message)"
+                }
 
-    foreach ($app in $apps) {
-        Write-Host "$($app.DisplayName) - Version: $($app.DisplayVersion)"
+        }
     }
 }
+
+
+function Show-Installed {
+    # Get list of installed applications from the registry
+    $installedApps = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |
+                     Where-Object { $_.DisplayName -ne $null } |
+                     Select-Object -ExpandProperty DisplayName
+
+    # Iterate through all checkboxes in the app panel
+    foreach ($expander in $appspanel.Children) {
+        $stackPanel = $expander.Content
+        foreach ($checkBox in $stackPanel.Children) {
+            if ($installedApps -contains $checkBox.Content) {
+                $checkBox.IsChecked = $true
+                #Write-Host "$($checkBox.Content) is installed."
+            } else {
+                $checkBox.IsChecked = $false
+            }
+        }
+    }
+}
+
+# Handler for clearing all application checkboxes
+$btnClearSelection = $window.FindName("btnClearSelection")
+$btnClearSelection.Add_Click({
+    # Iterate through all checkboxes in the applications panel
+    foreach ($expander in $appspanel.Children) {
+        $stackPanel = $expander.Content
+        foreach ($checkBox in $stackPanel.Children) {
+            $checkBox.IsChecked = $false
+        }
+    }
+})
 
 
 
@@ -455,19 +578,6 @@ if ($bingSearchEnabled -eq 1) {
     $btnToggleBingSearch.IsChecked = $false
     $btnToggleBingSearch.Content = "Enable Bing Search"
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 function Add-TweakOptions {
