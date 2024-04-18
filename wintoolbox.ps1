@@ -10,8 +10,6 @@
     GitHub         : https://github.com/mydrift-user
     ?              : pnp powershell instead of Get-Credential?
     TODO           : create session without prequisits on remote machine
-    TODO           : make locally accessable (elevated shell start fetch code from saved source instead of from the website the second time, ability to make local shortcuts)
-    TODO           : if network available, show apps to install. else notify user and still let him make tweaks ...
     TODO           : delete logs older than 30 days | create config for that (checkbox in settings tab (rename sources to settings) rename sources as subtab)
     TODO           : package as .exe (github & website)
     TODO           : save an additional script and put it in task scheduler. after 30 days of not running the script it deleats the logs, the task and itself.
@@ -62,35 +60,30 @@ $dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
 Start-Transcript -Path "C:\Windows\WinToolBox\Logs\WinToolBox_$dateTime.log" -Append
 #Get-Content "C:\Windows\WinToolbox\Logs\manager_$dateTime.log"
 
+function Get-JsonConfig {
+    param (
+        [string]$ConfigPath = "C:\Windows\WinToolBox\config.json"
+    )
 
-# Function to install and import PsIni module
-function Ensure-PsModule($moduleName) {
-    $module = Get-Module -ListAvailable -Name $moduleName
-
-    # Check if the module is not installed
-    if (-not $module) {
-        # Install Module from the PowerShell Gallery
-        Write-Host ""
-        Write-Host "Installing $moduleName module..."
-        try {
-            Install-Module -Name $moduleName -Repository PSGallery -Force -ErrorAction Stop
-            Write-Host "$moduleName module installed successfully."
-        } catch {
-            Write-Host "Failed to install $moduleName module. Error: $($_.Exception.Message)"
-            return
-        }
-    }
-
-    try {
-        Import-Module -Name $moduleName
-        Write-Host "$moduleName module imported successfully."
-    } catch {
-        Write-Host "Failed to import $moduleName module. Error: $($_.Exception.Message)"
+    if (Test-Path -Path $ConfigPath) {
+        $json = Get-Content -Path $ConfigPath -Raw | ConvertFrom-Json
+        return $json
+    } else {
+        return $null
     }
 }
-# Call the function to ensure PsIni module is ready
-Ensure-PsModule 'psini'
-#Ensure-PsModule 'PoshTaskbarItem'
+
+function Set-JsonConfig {
+    param (
+        [Parameter(Mandatory)]
+        [PSCustomObject]$JsonData,
+
+        [string]$ConfigPath = "C:\Windows\WinToolBox\config.json"
+    )
+
+    $JsonData | ConvertTo-Json -Depth 5 | Set-Content -Path $ConfigPath
+}
+
 
 # Load WPF and XAML libraries
 Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, System.Drawing, WindowsFormsIntegration
@@ -128,9 +121,9 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
             </Setter>
         </Style>
     </Window.Resources>
+    
 
     <DockPanel LastChildFill="True">
-
         <Expander Name="DeviceMGMTexpander" ExpandDirection="Right" IsExpanded="False">
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
@@ -161,7 +154,6 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
                                 <RowDefinition Height="Auto"/> <!-- Reihe für die Buttons -->
                                 <RowDefinition Height="*"/> <!-- Reihe für den ScrollViewer -->
                             </Grid.RowDefinitions>
-
                             <!-- Buttons oben im Grid -->
                             <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="10">
                                 <Button Name="btnInstallSelection" Content="Install/Upgrade Selection" Margin="5"/>
@@ -170,7 +162,6 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
                                 <Button Name="btnShowInstalled" Content="Show Installed" Margin="5"/>
                                 <Button Name="btnClearSelection" Content="Clear Selection" Margin="5"/>
                             </StackPanel>
-
                             <!-- ScrollViewer für die Applikationsliste in der zweiten Reihe des Grids -->
                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                                 <WrapPanel Name="appspanel" Orientation="Horizontal">
@@ -179,49 +170,38 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
                             </ScrollViewer>
                         </Grid>
                     </TabItem>
-
                     <TabItem Header="Tweaks">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-
                             <!-- First Column for checkboxes and buttons -->
                             <Grid Grid.Column="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-
                                 <!-- Checkboxes StackPanel -->
                                 <StackPanel Name="tweaksPanel" Margin="10">
                                     <!-- Checkboxes will be added here in the script -->
                                 </StackPanel>
-
                                 <!-- Buttons at the bottom -->
                                 <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
                                     <Button Name="btnRunTweaks" Content="Run Selected" Margin="5" Width="100" />
                                     <Button Name="btnUndoTweaks" Content="Undo Selected" Margin="5" Width="100" />
                                 </StackPanel>
                             </Grid>
-
                             <!-- Second Column for toggle switch and other controls -->
                             <StackPanel Grid.Column="1" Margin="10">
                                 <ToggleButton Name="btnToggleDarkMode" Style="{StaticResource ToggleSwitchStyle}" Margin="10" IsChecked="False" HorizontalAlignment="Left"/>
                                 <TextBlock Name="txtToggleTheme" VerticalAlignment="Center" Text="Dark Mode" HorizontalAlignment="Left"/>
-                                
                                 <ToggleButton Name="btnToggleBingSearch" Style="{StaticResource ToggleSwitchStyle}" Margin="10" IsChecked="False" HorizontalAlignment="Left"/>
                                 <TextBlock Name="txtToggleBingSearchStatus" VerticalAlignment="Center" Text="Bing Search in Start Menu" HorizontalAlignment="Left"/>
-
-
                                 <Button Name="btnCreateShortcut" Content="Create Shortcut" Margin="5" HorizontalAlignment="Left"/>
                             </StackPanel>
-
                         </Grid>
                     </TabItem>
-
-
                 </TabControl>
             </TabItem>
             <TabItem Header="Sources">
@@ -250,10 +230,29 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
 $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
+$subTabControl = $window.FindName("subTabControl")
+
+# Check for Internet connection before showing the window
+$tabApplications = $window.FindName("tabApplications")  # Get the Applications tab reference
+
+$network = $null
+
+if (-not (Test-Connection 8.8.8.8 -Quiet -Count 1)) {
+    $tabApplications.Visibility = [System.Windows.Visibility]::Collapsed
+    $subTabControl.SelectedIndex = 1
+    Write-Host "No Internet Connection: Hiding Applications Tab"
+    $network = "false"
+} else {
+    $tabApplications.Visibility = [System.Windows.Visibility]::Visible
+    $subTabControl.SelectedIndex = 0
+    #Write-Host "Internet Connection Detected: Displaying Applications Tab"
+    $network = "true"
+}
+
+
 # URL to the ICO file
 $iconUrl = "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/logo.ico"
 $iconPath = "C:\Windows\WinToolbox\assets\logo.ico"
-
 
 # Ensure the directory exists
 $directoryPath = [System.IO.Path]::GetDirectoryName($iconPath)
@@ -263,18 +262,20 @@ if (-not (Test-Path -Path $directoryPath)) {
 }
 
 # Download the ICO file
-try {
-    Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
+if ($network -eq "true") {
+    try {
+        Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
 
-    # Create an ImageSource from the ICO file
-    $iconUri = New-Object System.Uri($iconPath)
-    $iconBitmap = New-Object System.Windows.Media.Imaging.BitmapImage($iconUri)
+        # Create an ImageSource from the ICO file
+        $iconUri = New-Object System.Uri($iconPath)
+        $iconBitmap = New-Object System.Windows.Media.Imaging.BitmapImage($iconUri)
 
-    # Set the Window Icon
-    $window.Icon = $iconBitmap
+        # Set the Window Icon
+        $window.Icon = $iconBitmap
 
-} catch {
-    Write-Host "Failed to download & load the ICO file. Error: $($_.Exception.Message)"
+    } catch {
+        Write-Host "Failed to download & load the ICO file. Error: $($_.Exception.Message)"
+    }
 }
 
 # Access controls from the parsed XAML
@@ -283,8 +284,6 @@ $btnAdd = $window.FindName("btnAdd")
 $btnRemove = $window.FindName("btnRemove")
 $panelDevices = $window.FindName("panelDevices")
 $btnRun = $window.FindName("btnRun")
-
-$subTabControl = $window.FindName("subTabControl")
 
 $txtNewSource = $window.FindName("txtNewSource")
 $cmbSourceType = $window.FindName("cmbSourceType")
@@ -311,161 +310,185 @@ $btnShowInstalled.Add_Click({ Show-Installed })
 $btnCreateShortcut = $window.FindName("btnCreateShortcut")
 $btnCreateShortcut.Add_Click({ Create-Shortcut })
 
+# Correct XML manipulation
+$appspanel = $window.FindName("appspanel")
 
-
-$iniPath = "C:\Windows\WinToolBox\config.ini"
-if (Test-Path $iniPath) {
-    $iniContent = Get-IniContent -FilePath $iniPath
-    $DeviceMGMTexpander = $window.FindName("DeviceMGMTexpander")
-    if ($iniContent.DeviceMGMTexpander -and $iniContent.DeviceMGMTexpander.expanded -eq "True") {
-        $DeviceMGMTexpander.IsExpanded = $true
-    } else {
-        $DeviceMGMTexpander.IsExpanded = $false
-    }
-    #Write-Host "Loaded expander state from $iniPath"
-}
-
-
-# Check for Internet connection before showing the window
-$tabApplications = $window.FindName("tabApplications")  # Get the Applications tab reference
-
-if (-not (Test-Connection 8.8.8.8 -Quiet -Count 1)) {
-    $tabApplications.Visibility = [System.Windows.Visibility]::Collapsed
-    $subTabControl.SelectedIndex = 1
-    Write-Host "No Internet Connection: Hiding Applications Tab"
+$config = Get-JsonConfig
+$DeviceMGMTexpander = $window.FindName("DeviceMGMTexpander")
+if ($config -and $config.DeviceMGMTexpander -and $config.DeviceMGMTexpander.expanded -eq "True") {
+    $DeviceMGMTexpander.IsExpanded = $true
 } else {
-    $tabApplications.Visibility = [System.Windows.Visibility]::Visible
-    $subTabControl.SelectedIndex = 0
-    #Write-Host "Internet Connection Detected: Displaying Applications Tab"
+    $DeviceMGMTexpander.IsExpanded = $false
 }
 
+
+# Handler for clearing all application checkboxes
+$btnClearSelection = $window.FindName("btnClearSelection")
+$btnClearSelection.Add_Click({ Clear-Selection })
+
+function Clear-Selection {
+    # Iterate through all checkboxes in the applications panel
+    foreach ($expander in $appspanel.Children) {
+        $stackPanel = $expander.Content
+        foreach ($checkBox in $stackPanel.Children) {
+            $checkBox.IsChecked = $false
+        }
+    }
+}
 
 function Install-PackageManagers {
-    # Check if Chocolatey is installed
-    if (Get-Command choco -ErrorAction SilentlyContinue) {
-        $currentVersion = choco --version | Out-String
-        #Write-Host "Current Chocolatey version: $currentVersion"
+    if ($network -eq "true") {
+        # Check if Chocolatey is installed
+        if (Get-Command choco -ErrorAction SilentlyContinue) {
+            $currentVersion = choco --version | Out-String
+            #Write-Host "Current Chocolatey version: $currentVersion"
 
+            try {
+                #Write-Host "Checking for updates for Chocolatey..."
+                $output = choco upgrade chocolatey -y | Out-String  # Capture the full output as a string
+                if ($output -like "*is the latest version available based on your source(s)*") {
+                    Write-Host "Chocolatey is installed. Version: $currentVersion"
+                } elseif ($output -like "*Chocolatey upgraded 0/1 packages*") {
+                    Write-Host "No updates were needed; Chocolatey is already at the latest version. Version: $currentVersion"
+                } elseif ($output -like "*Chocolatey upgraded 1/1 packages*" -or $output -like "*upgraded*") {
+                    $newVersion = choco --version | Out-String
+                    Write-Host "Chocolatey has been updated to the latest version: $newVersion"
+                } else {
+                    Write-Host "Chocolatey update status is unclear. Check the output above for more details."
+                }
+            } catch {
+                Write-Host "An error occurred while trying to update Chocolatey: $($_.Exception.Message)"
+            }
+        } else {
+            Write-Host "Chocolatey is not installed. Installing now."
+            try {
+                # Installing Chocolatey
+                Set-ExecutionPolicy Bypass -Scope Process -Force
+                [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+                $installedVersion = choco --version | Out-String
+                Write-Host "Chocolatey installed successfully. Version: $installedVersion"
+            } catch {
+                Write-Host "Failed to install Chocolatey: $($_.Exception.Message)"
+            }
+        }
+
+        # Check and install/update winget
         try {
-            #Write-Host "Checking for updates for Chocolatey..."
-            $output = choco upgrade chocolatey -y | Out-String  # Capture the full output as a string
-            if ($output -like "*is the latest version available based on your source(s)*") {
-                Write-Host "Chocolatey is installed. Version: $currentVersion"
-            } elseif ($output -like "*Chocolatey upgraded 0/1 packages*") {
-                Write-Host "No updates were needed; Chocolatey is already at the latest version. Version: $currentVersion"
-            } elseif ($output -like "*Chocolatey upgraded 1/1 packages*" -or $output -like "*upgraded*") {
-                $newVersion = choco --version | Out-String
-                Write-Host "Chocolatey has been updated to the latest version: $newVersion"
+            $wingetInstalled = winget --version
+            if ($wingetInstalled) {
+                Write-Host "winget is installed. Version: $wingetInstalled"
             } else {
-                Write-Host "Chocolatey update status is unclear. Check the output above for more details."
+                throw "winget not installed"
             }
         } catch {
-            Write-Host "An error occurred while trying to update Chocolatey: $($_.Exception.Message)"
-        }
-    } else {
-        Write-Host "Chocolatey is not installed. Installing now."
-        try {
-            # Installing Chocolatey
-            Set-ExecutionPolicy Bypass -Scope Process -Force
-            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-            iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-            $installedVersion = choco --version | Out-String
-            Write-Host "Chocolatey installed successfully. Version: $installedVersion"
-        } catch {
-            Write-Host "Failed to install Chocolatey: $($_.Exception.Message)"
-        }
-    }
-
-    # Check and install/update winget
-    try {
-        $wingetInstalled = winget --version
-        if ($wingetInstalled) {
-            Write-Host "winget is installed. Version: $wingetInstalled"
-        } else {
-            throw "winget not installed"
-        }
-    } catch {
-        Write-Host "Attempting to install/update winget from GitHub..."
-        try {
-            Invoke-WebRequest -Uri "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller.msixbundle" -OutFile "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle"
-            Add-AppxPackage -Path "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle" -ForceApplicationShutdown
-            Write-Host "winget installed/updated successfully from GitHub."
-        } catch {
-            Write-Host "Failed to install/update winget from GitHub. Error: $($_.Exception.Message)"
-            if (Get-Command choco -ErrorAction SilentlyContinue) {
-                try {
-                    choco install winget -y
-                    Write-Host "winget installed/updated successfully from Chocolatey."
-                } catch {
-                    Write-Host "Failed to install/update winget from Chocolatey. Error: $($_.Exception.Message)"
+            Write-Host "Attempting to install/update winget from GitHub..."
+            try {
+                Invoke-WebRequest -Uri "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller.msixbundle" -OutFile "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle"
+                Add-AppxPackage -Path "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle" -ForceApplicationShutdown
+                Write-Host "winget installed/updated successfully from GitHub."
+            } catch {
+                Write-Host "Failed to install/update winget from GitHub. Error: $($_.Exception.Message)"
+                if (Get-Command choco -ErrorAction SilentlyContinue) {
+                    try {
+                        choco install winget -y
+                        Write-Host "winget installed/updated successfully from Chocolatey."
+                    } catch {
+                        Write-Host "Failed to install/update winget from Chocolatey. Error: $($_.Exception.Message)"
+                    }
                 }
             }
         }
+    } elseif ($network -eq "false") {
+        #Write-Host "Network is not available. Skipping package manager checks."
     }
 }
 
 Install-PackageManagers
 
+function Is-AppInstalledWinget($app) {
+    if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
+        Write-Host "Winget is not installed."
+        return $false
+    }
+
+    try {
+        $installedApps = winget list --id $app -e
+        if ($installedApps -match $app) {
+            Write-Host "$app is installed via Winget."
+            return $true
+        } else {
+            Write-Host "$app is not installed via Winget."
+            return $false
+        }
+    } catch {
+        Write-Host "Failed to check application with Winget: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Is-AppInstalledChoco($app) {
+    if (-not (Get-Command "choco" -ErrorAction SilentlyContinue)) {
+        Write-Host "Chocolatey is not installed."
+        return $false
+    }
+
+    try {
+        $installedApps = choco list --localonly | Select-String -Pattern "$app"
+        if ($installedApps -match $app) {
+            Write-Host "$app is installed via Chocolatey."
+            return $true
+        } else {
+            Write-Host "$app is not installed via Chocolatey."
+            return $false
+        }
+    } catch {
+        Write-Host "Failed to check application with Chocolatey: $($_.Exception.Message)"
+        return $false
+    }
+}
+
 function Modify-SelectedApps($action) {
+    $commands = @()  # Initialize an array to hold all commands
     foreach ($expander in $appspanel.Children) {
         $stackPanel = $expander.Content
         foreach ($checkBox in $stackPanel.Children) {
             if ($checkBox.IsChecked) {
                 $appInfo = $checkBox.Tag  # Assuming you have stored app info in the Tag property during checkbox creation
-                try {
-                    switch ($action) {
-                        "modify" {
-                            if ($appInfo.winget) {
-                                $installedPackage = winget list --id $appInfo.winget -e | Where-Object { $_ -match $appInfo.winget }
-                                if ($installedPackage) {
-                                    $command = "winget upgrade $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements"
-                                    Write-Host "Upgrading $($checkBox.Content) using winget in a new PowerShell window"
-                                } else {
-                                    $command = "winget install $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements"
-                                    Write-Host "Installing $($checkBox.Content) using winget in a new PowerShell window"
-                                }
-                                Start-Process "powershell" -ArgumentList "-NoExit", "-Command", $command -WindowStyle Normal
-                            } elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
-                                $installedPackage = choco list --localonly | Where-Object { $_ -like "*$($appInfo.choco)*" }
-                                if ($installedPackage) {
-                                    $command = "choco upgrade $($appInfo.choco) -y"
-                                    Write-Host "Upgrading $($checkBox.Content) using Chocolatey in a new PowerShell window"
-                                } else {
-                                    $command = "choco install $($appInfo.choco) -y"
-                                    Write-Host "Installing $($checkBox.Content) using Chocolatey in a new PowerShell window"
-                                }
-                                Start-Process "powershell" -ArgumentList "-NoExit", "-Command", $command -WindowStyle Normal
-                            } else {
-                                Write-Host "No method found for $($checkBox.Content)"
-                            }
+                switch ($action) {
+                    "modify" {
+                        if ($appInfo.winget -and $appInfo.winget -ne "na") {
+                            $commands += "try { winget list --id $($appInfo.winget) -e | Where-Object {`$_.PackageIdentifier -eq '$($appInfo.winget)'}; winget upgrade $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements; } catch { Write-Host 'Failed to modify $($appInfo.winget): `$($_.Exception.Message)' }"
+                            $commands += "try { winget install $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements; } catch { Write-Host 'Failed to install $($appInfo.winget): `$($_.Exception.Message)' }"
                         }
-                        "uninstall" {
-                            if ($appInfo.winget) {
-                                $command = "winget uninstall --id $($appInfo.winget) --accept-source-agreements --accept-package-agreements"
-                                Write-Host "Uninstalling $($checkBox.Content) using winget in a new PowerShell window"
-                            } elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
-                                $command = "choco uninstall $($appInfo.choco) -y"
-                                Write-Host "Uninstalling $($checkBox.Content) using Chocolatey in a new PowerShell window"
-                            } else {
-                                Write-Host "No uninstall method found for $($checkBox.Content)"
-                            }
-                            Start-Process "powershell" -ArgumentList "-NoExit", "-Command", $command -WindowStyle Normal
-                        }
-                        default {
-                            Write-Host "Unsupported action: $action"
+                        if ($appInfo.choco -and $appInfo.choco -ne "na") {
+                            $commands += "try { choco upgrade $($appInfo.choco) -y; } catch { Write-Host 'Failed to upgrade $($appInfo.choco): `$($_.Exception.Message)' }"
+                            $commands += "try { choco install $($appInfo.choco) -y; } catch { Write-Host 'Failed to install $($appInfo.choco): `$($_.Exception.Message)' }"
                         }
                     }
-                } catch {
-                    Write-Host "Failed to $action $($checkBox.Content). Error: $($_.Exception.Message)"
+                    "uninstall" {
+                        $commands += "try { winget uninstall --id $($appInfo.winget); } catch { Write-Host 'Failed to uninstall $($appInfo.winget): `$($_.Exception.Message)' }"
+                        $commands += "try { choco uninstall $($appInfo.choco) -y; } catch { Write-Host 'Failed to uninstall $($appInfo.choco): `$($_.Exception.Message)' }"
+                    }
                 }
             }
         }
     }
+
+    if ($action -eq "updateall") {
+        $commands += "try { winget upgrade --all --accept-source-agreements --accept-package-agreements; } catch { Write-Host 'Failed to upgrade all Winget packages: `$($_.Exception.Message)' }"
+        $commands += "try { choco upgrade all -y; } catch { Write-Host 'Failed to upgrade all Chocolatey packages: `$($_.Exception.Message)' }"
+    }
+
+    if ($commands.Count -gt 0) {
+        $scriptBlock = $commands -join "; "
+        Write-Host "Executing the following commands in a new PowerShell window and will close automatically when done:"
+        Write-Host $scriptBlock
+        Start-Process "powershell" -ArgumentList "-NoProfile", "-Command", $scriptBlock -WindowStyle Normal
+    } else {
+        Write-Host "No applications selected or no valid action found."
+    }
 }
-
-
-
-
 
 function Install-SelectedApps {
     Modify-SelectedApps "modify"
@@ -476,63 +499,50 @@ function Uninstall-Selection {
 }
 
 function Update-AllApps {
-    foreach ($expander in $appspanel.Children) {
-        $stackPanel = $expander.Content
-        foreach ($checkBox in $stackPanel.Children) {
-
-                $appInfo = $checkBox.Tag  # Assuming you have stored app info in the Tag property during checkbox creation
-                try {
-                    if ($appInfo.winget) { 
-                        winget upgrade --all --accept-source-agreements --accept-package-agreements --scope=machine --silent
-                    } elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
-                        $command = "choco upgrade $($appInfo.choco) -y"
-                        Write-Host "Using Chocolatey to upgrade $($checkBox.Content)"
-                        Invoke-Expression $command
-                    } else {
-                        Write-Host "No method found for $($checkBox.Content)"
-                    }
-                } catch {
-                    Write-Host "Failed to upgrade $($checkBox.Content). Error: $($_.Exception.Message)"
-                }
-
-        }
-    }
+    Modify-SelectedApps "updateall"
 }
 
+function Escape-Regex ($string) {
+    [regex]::Escape($string)
+}
 
+# Ensure the rest of your script follows here...
 function Show-Installed {
-    # Get list of installed applications from the registry
-    $installedApps = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |
-                     Where-Object { $_.DisplayName -ne $null } |
-                     Select-Object -ExpandProperty DisplayName
+    # Example usage within this function
+    $chocoInstalled = if (Get-Command "choco" -ErrorAction SilentlyContinue) {
+        choco list --localonly
+    } else {
+        ""
+    }
 
-    # Iterate through all checkboxes in the app panel
+    $wingetInstalled = if (Get-Command "winget" -ErrorAction SilentlyContinue) {
+        winget list
+    } else {
+        ""
+    }
+
+    Clear-Selection
+    # Iterate through checkboxes...
     foreach ($expander in $appspanel.Children) {
         $stackPanel = $expander.Content
         foreach ($checkBox in $stackPanel.Children) {
-            if ($installedApps -contains $checkBox.Content) {
-                $checkBox.IsChecked = $true
-                #Write-Host "$($checkBox.Content) is installed."
-            } else {
-                $checkBox.IsChecked = $false
+            $appInfo = $checkBox.Tag
+            $isInstalled = $false
+
+            if ($appInfo.choco -and $appInfo.choco -ne "na") {
+                $escapedChoco = Escape-Regex $appInfo.choco
+                $isInstalled = $isInstalled -or ($chocoInstalled -match $escapedChoco)
             }
+
+            if ($appInfo.winget -and $appInfo.winget -ne "na") {
+                $escapedWinget = Escape-Regex $appInfo.winget
+                $isInstalled = $isInstalled -or ($wingetInstalled -match $escapedWinget)
+            }
+
+            $checkBox.IsChecked = $isInstalled
         }
     }
 }
-
-# Handler for clearing all application checkboxes
-$btnClearSelection = $window.FindName("btnClearSelection")
-$btnClearSelection.Add_Click({
-    # Iterate through all checkboxes in the applications panel
-    foreach ($expander in $appspanel.Children) {
-        $stackPanel = $expander.Content
-        foreach ($checkBox in $stackPanel.Children) {
-            $checkBox.IsChecked = $false
-        }
-    }
-})
-
-
 
 function Get-SystemTheme {
     $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
@@ -579,7 +589,6 @@ if ($bingSearchEnabled -eq 1) {
     $btnToggleBingSearch.Content = "Enable Bing Search"
 }
 
-
 function Add-TweakOptions {
     $tweaksPanel = $window.FindName("tweaksPanel")
 
@@ -589,46 +598,60 @@ function Add-TweakOptions {
     }
 
     $tweakOptions = @(
-        @{ Name="Enable Feature X"; Description="Enables the experimental Feature X."; Tooltip="Be cautious, this is experimental."},
-        @{ Name="Enable Logging"; Description="Starts detailed logging of the application."; Tooltip="This may impact performance."},
-        @{ Name="Set Services to Manual"; Description="Services -> Manual"; Tooltip="Stops Services from running if they are not needed."}
+        @{ 
+            Name="Delete Temporary Files"; 
+            Tooltip="Erases TEMP folder";
+            ScriptBlock={ Remove-Item -Path "C:\Windows\Temp\*" -Force -Recurse }; 
+            UndoScriptBlock={ Write-Host "Cannot undo delete." } },
+        @{ 
+            Name="Disk Cleanup"; 
+            Tooltip="Runs Disk Cleanup on Drive C: and removes old Windows Updates";
+            ScriptBlock={ Start-Process "cleanmgr" -ArgumentList "/sagerun:1" }; 
+            UndoScriptBlock={ Write-Host "Disk cleanup cannot be undone." } },
+        @{ 
+            Name="Set Services to Manual"; 
+            Tooltip="Stops Services from running if they are not needed";
+            ScriptBlock={ Get-Service | Where-Object {$_.StartType -eq 'Automatic'} | Set-Service -StartupType Manual }; 
+            UndoScriptBlock={ Write-Host "Service changes should be manually reviewed to undo." } }
     )
 
     foreach ($tweak in $tweakOptions) {
         $checkBox = New-Object System.Windows.Controls.CheckBox
         $checkBox.Content = $tweak.Name
         $checkBox.Margin = New-Object System.Windows.Thickness(5)
+        $checkBox.Tag = $tweak  # Store the entire tweak object in the Tag property
 
         # ToolTip setup
         $toolTip = New-Object System.Windows.Controls.ToolTip
         $toolTip.Content = $tweak.Tooltip
-        $checkBox.ToolTip = $toolTip
+        $checkBox.ToolTip = $toolTip  # Ensure this line correctly sets the tooltip object
 
         # Add CheckBox to the StackPanel
         $tweaksPanel.Children.Add($checkBox) | Out-Null
     }
 }
 
+
 Add-TweakOptions
 
-
-# Function to handle running selected tweaks
 function Run-SelectedTweaks {
-    # Example of checking which checkboxes are checked and acting on them
+    $tweaksPanel = $window.FindName("tweaksPanel")
     $tweaksPanel.Children | Where-Object { $_ -is [System.Windows.Controls.CheckBox] -and $_.IsChecked } | ForEach-Object {
-        Write-Host "Running tweak for: $($_.Content)"
-        # Insert logic to apply the tweak
+        $tweak = $_.Tag
+        Write-Host "Running tweak for: $($tweak.Name)"
+        & $tweak.ScriptBlock
     }
 }
 
-# Function to handle undoing selected tweaks
 function Undo-SelectedTweaks {
-    # Example of checking which checkboxes are checked and acting on them
+    $tweaksPanel = $window.FindName("tweaksPanel")
     $tweaksPanel.Children | Where-Object { $_ -is [System.Windows.Controls.CheckBox] -and $_.IsChecked } | ForEach-Object {
-        Write-Host "Undoing tweak for: $($_.Content)"
-        # Insert logic to revert the tweak
+        $tweak = $_.Tag
+        Write-Host "Undoing tweak for: $($tweak.Name)"
+        & $tweak.UndoScriptBlock
     }
 }
+
 
 # Adding click event handlers to buttons
 $btnRunTweaks = $window.FindName("btnRunTweaks")
@@ -642,7 +665,6 @@ $btnUndoTweaks.Add_Click({
     Undo-SelectedTweaks
 })
 
-
 $btnToggleDarkMode.Add_Checked({
     Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "SystemUsesLightTheme" -Value 0
     Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name "AppsUseLightTheme" -Value 0  
@@ -655,8 +677,6 @@ $btnToggleDarkMode.Add_Unchecked({
     $btnToggleDarkMode.Content = "Enable Dark Mode"
 })
 
-
-
 function Invoke-RemoteCommand {
     param(
         [ScriptBlock]$ScriptBlock
@@ -667,8 +687,68 @@ function Invoke-RemoteCommand {
     }
 }
 
-
 function Create-Shortcut {
+    param(
+        [string]$ScriptUrl = "http://mdiana.win",
+        [string]$LocalPath = "C:\Windows\WinToolBox\Scripts\Local-WinToolBox.ps1"
+    )
+
+    # Ensure the directory exists where the script will be saved
+    $directory = Split-Path -Path $LocalPath -Parent
+    if (-not (Test-Path -Path $directory)) {
+        New-Item -Path $directory -ItemType Directory -Force | Out-Null
+        Write-Host "Created directory: $directory"
+    }
+
+    try {
+        # Download the script from the URL
+        $scriptContent = Invoke-RestMethod -Uri $ScriptUrl
+        $scriptContent | Out-File -FilePath $LocalPath -Force
+        Write-Host "Script saved successfully to $LocalPath"
+    } catch {
+        Write-Host "Failed to download or save the script. Error: $($_.Exception.Message)"
+    }
+
+    # Define the path where the script will be saved
+    $scriptPath = "C:\Windows\WinToolBox\Scripts\Local-director.ps1"
+
+    # Ensure the directory exists
+    $directory = Split-Path -Path $scriptPath
+    if (-not (Test-Path $directory)) {
+        New-Item -Path $directory -ItemType Directory -Force
+    }
+
+    # Script content that checks internet connection and executes commands accordingly
+    $scriptContent = @'
+if (Test-Connection 8.8.8.8 -Quiet -Count 1) {
+    try {
+        # If there is Internet, run the script from mdiana.win
+        irm mdiana.win | iex
+    } catch {
+        Write-Host "Failed to load script from mdiana.win: $($_.Exception.Message)"
+        Pause
+    }
+} else {
+    try {
+        if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+            # If not elevated, relaunch the script in a new elevated PowerShell session
+            $escapedCommand = 'irm C:\Windows\WinToolBox\Scripts\Local-WinToolBox.ps1 | iex'
+            Start-Process PowerShell -ArgumentList "-Command", $escapedCommand -Verb RunAs
+            exit
+        }
+    } catch {
+        Write-Host "Failed to run the local script: $($_.Exception.Message)"
+        Pause
+    }
+}
+
+'@
+
+    # Write the script content to the file without BOM
+    $utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllLines($scriptPath, $scriptContent, $utf8NoBomEncoding)
+    Write-Host "Script created or updated at $scriptPath"
+
     # Load Windows Forms and drawing assemblies
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -684,7 +764,7 @@ function Create-Shortcut {
         $shortcutPath = $saveFileDialog.FileName
 
         # Specify the target PowerShell command
-        $command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'irm mdiana.dev/win | iex'"
+        $command = "irm C:\Windows\WinToolBox\Scripts\Local-director.ps1 | iex"
 
         # Create a shell object
         $shell = New-Object -ComObject WScript.Shell
@@ -710,12 +790,6 @@ function Create-Shortcut {
     }
 }
 
-
-$jsonUrls = @(
-    "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json"
-    #"https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
-)
-
 $configPath = "C:\Windows\WinToolbox\WinToolBox.config"
 if (Test-Path $configPath) {
     $savedSourceEntries = Get-Content $configPath
@@ -727,94 +801,98 @@ if (Test-Path $configPath) {
     }
 }
 
-# Initialize a hashtable to store applications by category
-$appsByCategory = @{}
+if ($network -eq "true") {
+    $jsonUrls = @(
+        "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json"
+        #"https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
+    )
 
-# Iterate over the URLs and fetch JSON content from each
-foreach ($jsonUrl in $jsonUrls) {
-    $jsonContent = Invoke-WebRequest -Uri $jsonUrl -UseBasicParsing | ConvertFrom-Json
+    # Initialize a hashtable to store applications by category
+    $appsByCategory = @{}
 
-    # Organize applications by category
-    foreach ($app in $jsonContent.PSObject.Properties) {
-        $category = $app.Value.category
-        $choco = $app.Value.choco
-        $winget = $app.Value.winget
-        $link = $app.Value.link
-        $description = $app.Value.description
-        $content = $app.Value.content
-        #write-Host $content $description $link $choco $winget
-        #write-host ""
-        if (-not $category) {
-            $category = "Uncategorized" # Assign a default category if null or empty
+    # Iterate over the URLs and fetch JSON content from each
+    foreach ($jsonUrl in $jsonUrls) {
+        $jsonContent = Invoke-WebRequest -Uri $jsonUrl -UseBasicParsing | ConvertFrom-Json
+
+        # Organize applications by category
+        foreach ($app in $jsonContent.PSObject.Properties) {
+            $category = $app.Value.category
+            $choco = $app.Value.choco
+            $winget = $app.Value.winget
+            $link = $app.Value.link
+            $description = $app.Value.description
+            $content = $app.Value.content
+            #write-Host $content $description $link $choco $winget
+            #write-host ""
+            if (-not $category) {
+                $category = "Uncategorized" # Assign a default category if null or empty
+            }
+
+            if (-not $appsByCategory.ContainsKey($category)) {
+                $appsByCategory[$category] = @()
+            }
+            $appsByCategory[$category] += $app
         }
-
-        if (-not $appsByCategory.ContainsKey($category)) {
-            $appsByCategory[$category] = @()
-        }
-        $appsByCategory[$category] += $app
-    }
-}
-
-# Correct XML manipulation
-$appspanel = $window.FindName("appspanel")
-
-
-# Clear existing items in appspanel to avoid duplicates
-$appspanel.Children.Clear()
-
-# Sort categories alphabetically before creating expanders
-$sortedCategories = $appsByCategory.Keys | Sort-Object
-
-foreach ($category in $sortedCategories) {
-    $expander = New-Object System.Windows.Controls.Expander
-    $expander.Header = $category
-    $expander.IsExpanded = $true
-
-    $stackPanel = New-Object System.Windows.Controls.StackPanel
-
-    # Sort apps within the category alphabetically by content
-    $sortedApps = $appsByCategory[$category] | Sort-Object { $_.Value.content }
-
-    foreach ($app in $sortedApps) {
-        $checkBox = New-Object System.Windows.Controls.CheckBox
-
-        # StackPanel to hold the text and the hyperlink
-        $innerStackPanel = New-Object System.Windows.Controls.StackPanel
-        $innerStackPanel.Orientation = "Horizontal"
-
-        # TextBlock for the app's content
-        $textBlock = New-Object System.Windows.Controls.TextBlock
-        $textBlock.Text = $app.Value.content
-        $innerStackPanel.Children.Add($textBlock) | Out-Null
-
-        # ToolTip
-        $toolTip = New-Object System.Windows.Controls.ToolTip
-        $toolTip.Content = $app.Value.description
-        $checkBox.ToolTip = $app.Value.description
-
-        $checkBox.Content = $app.Value.content
-        $checkBox.Margin = New-Object System.Windows.Thickness(5)
-        $checkBox.Tag = @{ "choco" = $app.Value.choco; "winget" = $app.Value.winget }
-        #write-host $app.Value.choco 
-        #write-host $app.Value.winget
-        $stackPanel.Children.Add($checkBox) | Out-Null
-
-        # Hyperlink
-        $hyperlink = New-Object System.Windows.Documents.Hyperlink
-        $hyperlink.Inlines.Add(" ?")
-        $hyperlink.NavigateUri = New-Object System.Uri($app.Value.link)
-        $hyperlink.Add_RequestNavigate({
-            param($sender, $e)
-            Start-Process $e.Uri.AbsoluteUri
-        })
-        $textBlock.Inlines.Add($hyperlink)
-        $hyperlink.TextDecorations = $null
     }
 
-    $expander.Content = $stackPanel
-    $appspanel.Children.Add($expander) | Out-Null
-}
 
+
+    # Clear existing items in appspanel to avoid duplicates
+    $appspanel.Children.Clear()
+
+    # Sort categories alphabetically before creating expanders
+    $sortedCategories = $appsByCategory.Keys | Sort-Object
+
+    foreach ($category in $sortedCategories) {
+        $expander = New-Object System.Windows.Controls.Expander
+        $expander.Header = $category
+        $expander.IsExpanded = $true
+
+        $stackPanel = New-Object System.Windows.Controls.StackPanel
+
+        # Sort apps within the category alphabetically by content
+        $sortedApps = $appsByCategory[$category] | Sort-Object { $_.Value.content }
+
+        foreach ($app in $sortedApps) {
+            $checkBox = New-Object System.Windows.Controls.CheckBox
+
+            # StackPanel to hold the text and the hyperlink
+            $innerStackPanel = New-Object System.Windows.Controls.StackPanel
+            $innerStackPanel.Orientation = "Horizontal"
+
+            # TextBlock for the app's content
+            $textBlock = New-Object System.Windows.Controls.TextBlock
+            $textBlock.Text = $app.Value.content
+            $innerStackPanel.Children.Add($textBlock) | Out-Null
+
+            # ToolTip
+            $toolTip = New-Object System.Windows.Controls.ToolTip
+            $toolTip.Content = $app.Value.description
+            $checkBox.ToolTip = $app.Value.description
+
+            $checkBox.Content = $app.Value.content
+            $checkBox.Margin = New-Object System.Windows.Thickness(5)
+            $checkBox.Tag = @{ "choco" = $app.Value.choco; "winget" = $app.Value.winget }
+            #write-host $app.Value.choco 
+            #write-host $app.Value.winget
+            $stackPanel.Children.Add($checkBox) | Out-Null
+
+            # Hyperlink
+            $hyperlink = New-Object System.Windows.Documents.Hyperlink
+            $hyperlink.Inlines.Add(" ?")
+            $hyperlink.NavigateUri = New-Object System.Uri($app.Value.link)
+            $hyperlink.Add_RequestNavigate({
+                param($sender, $e)
+                Start-Process $e.Uri.AbsoluteUri
+            })
+            $textBlock.Inlines.Add($hyperlink)
+            $hyperlink.TextDecorations = $null
+        }
+
+        $expander.Content = $stackPanel
+        $appspanel.Children.Add($expander) | Out-Null
+    }
+}
 
 # Window-level event handler for hyperlink clicks
 $window.Add_PreviewMouseLeftButtonDown({
@@ -828,7 +906,6 @@ $window.Add_PreviewMouseLeftButtonDown({
         }
     }
 })
-
 
 function Add-Source {
     $newSource = $txtNewSource.Text
@@ -848,7 +925,6 @@ function Add-Source {
     # Clear the input field after adding the source
     $txtNewSource.Text = ""
 }
-
 
 function Remove-Source {
     # Create an array to hold sources that will remain
@@ -892,7 +968,6 @@ function Remove-Device {
     }
 }
 
-
 # Add the current device to the list of devices
 $checkbox = New-Object System.Windows.Controls.CheckBox
 $checkbox.Content = $env:COMPUTERNAME
@@ -901,14 +976,49 @@ $checkbox.IsChecked = $true  # Ensures the checkbox is checked at creation
 $panelDevices.Children.Add($checkbox) | Out-Null
 Write-Host "Connected with: $env:COMPUTERNAME"
 
-
 $window.Add_Closing({
-    $iniPath = "C:\Windows\WinToolBox\config.ini"
     $DeviceMGMTexpander = $window.FindName("DeviceMGMTexpander")
     $expanderState = $DeviceMGMTexpander.IsExpanded
-    $iniContent = @{"DeviceMGMTexpander" = @{"expanded" = $expanderState}}
-    $iniContent | Out-IniFile -FilePath $iniPath -Force
-    #Write-Host "Saved expander state to $iniPath"
+    $configData = @{
+        DeviceMGMTexpander = @{
+            expanded = $expanderState
+        }
+    }
+
+    Set-JsonConfig -JsonData $configData | Out-Null
 })
+
+
+function Update-LocalScriptIfExists {
+    param(
+        [string]$ScriptUrl = "http://mdiana.win/",
+        [string]$LocalPath = "C:\Windows\WinToolBox\Scripts\Local-WinToolBox.ps1"
+    )
+
+    # Check if the script file already exists
+    if (Test-Path -Path $LocalPath) {
+        #Write-Host "Existing script found. Checking for updates..."
+
+        # Ensure the directory exists where the script will be saved
+        $directory = Split-Path -Path $LocalPath -Parent
+        if (-not (Test-Path -Path $directory)) {
+            New-Item -Path $directory -ItemType Directory -Force | Out-Null
+            #Write-Host "Created directory: $directory"
+        }
+
+        try {
+            # Fetch the script from the given URL and overwrite the local file
+            $scriptContent = Invoke-RestMethod -Uri $ScriptUrl
+            $scriptContent | Out-File -FilePath $LocalPath -Force
+            #Write-Host "Script has been updated and saved to $LocalPath"
+        } catch {
+            #Write-Host "Failed to backup or save the script. Error: $($_.Exception.Message)"
+        }
+    } else {
+        #Write-Host "No existing script found to update at $LocalPath"
+    }
+}
+
+Update-LocalScriptIfExists
 
 $window.ShowDialog()
