@@ -454,21 +454,30 @@ function Modify-SelectedApps($action) {
         $stackPanel = $expander.Content
         foreach ($checkBox in $stackPanel.Children) {
             if ($checkBox.IsChecked) {
-                $appInfo = $checkBox.Tag  # Assuming you have stored app info in the Tag property during checkbox creation
+                $appInfo = $checkBox.Tag
                 switch ($action) {
                     "modify" {
                         if ($appInfo.winget -and $appInfo.winget -ne "na") {
-                            $commands += "try { winget list --id $($appInfo.winget) -e | Where-Object {`$_.PackageIdentifier -eq '$($appInfo.winget)'}; winget upgrade $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements; } catch { Write-Host 'Failed to modify $($appInfo.winget): `$($_.Exception.Message)' }"
                             $commands += "try { winget install $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements; } catch { Write-Host 'Failed to install $($appInfo.winget): `$($_.Exception.Message)' }"
+                            $commands += "try { winget upgrade $($appInfo.winget) -e --accept-source-agreements --accept-package-agreements; } catch { Write-Host 'Failed to modify $($appInfo.winget): `$($_.Exception.Message)' }"
                         }
-                        if ($appInfo.choco -and $appInfo.choco -ne "na") {
-                            $commands += "try { choco upgrade $($appInfo.choco) -y; } catch { Write-Host 'Failed to upgrade $($appInfo.choco): `$($_.Exception.Message)' }"
+                        elseif ($appInfo.choco -and $appInfo.choco -ne "na") {
                             $commands += "try { choco install $($appInfo.choco) -y; } catch { Write-Host 'Failed to install $($appInfo.choco): `$($_.Exception.Message)' }"
+                            $commands += "try { choco upgrade $($appInfo.choco) -y; } catch { Write-Host 'Failed to upgrade $($appInfo.choco): `$($_.Exception.Message)' }"
                         }
                     }
                     "uninstall" {
-                        $commands += "try { winget uninstall --id $($appInfo.winget); } catch { Write-Host 'Failed to uninstall $($appInfo.winget): `$($_.Exception.Message)' }"
-                        $commands += "try { choco uninstall $($appInfo.choco) -y; } catch { Write-Host 'Failed to uninstall $($appInfo.choco): `$($_.Exception.Message)' }"
+                        $commands += "
+                        try { 
+                            winget uninstall --id $($appInfo.winget); 
+                        } catch { 
+                            Write-Host 'Failed to uninstall $($appInfo.winget): `$($_.Exception.Message)'
+                            try {
+                                choco uninstall $($appInfo.choco) -y;
+                            } catch {
+                                Write-Host 'Failed to uninstall $($appInfo.choco): `$($_.Exception.Message)'
+                            }
+                        }"
                     }
                 }
             }
