@@ -342,11 +342,11 @@ function Install-PackageManagers {
         if (Get-Command choco -ErrorAction SilentlyContinue) {
             $currentVersion = choco --version | Out-String
             #Write-Host "Current Chocolatey version: $currentVersion"
-
             try {
                 #Write-Host "Checking for updates for Chocolatey..."
                 $output = choco upgrade chocolatey -y | Out-String  # Capture the full output as a string
                 if ($output -like "*is the latest version available based on your source(s)*") {
+                    Write-Host ""
                     Write-Host "Chocolatey is installed. Version: $currentVersion"
                 } elseif ($output -like "*Chocolatey upgraded 0/1 packages*") {
                     Write-Host "No updates were needed; Chocolatey is already at the latest version. Version: $currentVersion"
@@ -382,22 +382,30 @@ function Install-PackageManagers {
                 throw "winget not installed"
             }
         } catch {
-            Write-Host "Attempting to install/update winget from GitHub..."
+            Write-Host "Attempting to install/update winget..."
             try {
-                Invoke-WebRequest -Uri "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller.msixbundle" -OutFile "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle"
-                Add-AppxPackage -Path "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle" -ForceApplicationShutdown
-                Write-Host "winget installed/updated successfully from GitHub."
-            } catch {
-                Write-Host "Failed to install/update winget from GitHub. Error: $($_.Exception.Message)"
                 if (Get-Command choco -ErrorAction SilentlyContinue) {
                     try {
                         choco install winget -y
-                        Write-Host "winget installed/updated successfully from Chocolatey."
+                        Write-Host "===========================================" -ForegroundColor Green
+                        Write-Host "---    Installed Winget Successfully    ---" -ForegroundColor Green
+                        Write-Host "===========================================" -ForegroundColor Green
                     } catch {
                         Write-Host "Failed to install/update winget from Chocolatey. Error: $($_.Exception.Message)"
                     }
                 }
-            }
+            } catch {
+                Write-Host "
+                Chocolatey is not installed. Attempting to install winget from GitHub...
+                
+                This Method is in testing phase. Please report any issues to Github.
+                "
+
+                Invoke-WebRequest -Uri "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller.msixbundle" -OutFile "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle"
+                Add-AppxPackage -Path "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle" -ForceApplicationShutdown
+                Write-Host "winget installed/updated successfully from GitHub."
+                Remove-Item -Path "$env:TEMP\Microsoft.DesktopAppInstaller.msixbundle" -Force
+            } 
         }
     } elseif ($network -eq "false") {
         #Write-Host "Network is not available. Skipping package manager checks."

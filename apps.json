@@ -1,24 +1,18 @@
 {
-    "PWFinstallvscode":{
-      "name": "Visual Studio Code",
-      "winget": "Microsoft.VisualStudioCode",
-      "choco": "visualstudiocode",
-      "description": "Free. Built on open source. Runs everywhere.",
-      "link": "https://code.visualstudio.com/"
-    },
-    "PWFinstallchrome":{
-      "name": "Google Chrome",
-      "winget": "Google.Chrome",
-      "choco": "googlechrome",
-      "description": "A fast, secure, and free web browser built for the modern web.",
-      "link": "https://www.google.com/chrome/"
-    },
-    "PWFinstall7zip":{
-      "name": "7-Zip",
-      "winget": "7zip.7zip",
-      "choco": "7zip",
-      "description": "A file archiver with a high compression ratio.",
-      "link": "https://www.7-zip.org/"
-    }
-
+  "WPFInstallQFlipper": {
+		"category": "Utilities",
+		"choco": "qflipper",
+		"content": "QFlipper",
+		"description": "QFlipper is a software tool designed for managing and updating devices from Flipper Zero, helping users to install custom firmware and manage device functionality.",
+		"link": "https://flipperzero.one/",
+		"winget": "FlipperDevices.QFlipper"
+	},
+"WPFInstallWinToys": {
+		"category": "Utilities",
+		"choco": "wintoys",
+		"content": "WinToys",
+		"description": "WinToys is a collection of utilities for Windows 10/11 that enhances productivity by providing easy access to advanced system functions and tweaks.",
+		"link": "https://github.com/PhilippeDumas/WinToys",
+		"winget": "WinToys"
+	}
 }
