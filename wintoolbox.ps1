@@ -56,13 +56,20 @@ MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD
 
 "
 
+$directory = "C:\Windows\WinToolBox"
+
+# Check if the logs subdirectory exists within the main directory and create it if it doesn't
+if (-not (Test-Path -Path "$directory\Logs")) {
+    New-Item -Path "$directory\Logs" -ItemType Directory -Force | Out-Null
+}
+
 $dateTime = Get-Date -Format "dd-MM-yyyy_HH-mm-ss"
-Start-Transcript -Path "C:\Windows\WinToolBox\Logs\WinToolBox_$dateTime.log" -Append
-#Get-Content "C:\Windows\WinToolbox\Logs\manager_$dateTime.log"
+Start-Transcript -Path "$directory\Logs\WinToolBox_$dateTime.log" -Append
+
 
 function Get-JsonConfig {
     param (
-        [string]$ConfigPath = "C:\Windows\WinToolBox\config.json"
+        [string]$ConfigPath = "$directory\config.json"
     )
 
     if (Test-Path -Path $ConfigPath) {
@@ -78,7 +85,7 @@ function Set-JsonConfig {
         [Parameter(Mandatory)]
         [PSCustomObject]$JsonData,
 
-        [string]$ConfigPath = "C:\Windows\WinToolBox\config.json"
+        [string]$ConfigPath = "$directory\config.json"
     )
 
     $JsonData | ConvertTo-Json -Depth 5 | Set-Content -Path $ConfigPath
@@ -98,31 +105,68 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ToggleButton}">
-                        <Border x:Name="border" Width="50" Height="25" CornerRadius="12.5" BorderBrush="#00FFFFFF" BorderThickness="1"> <!-- or gray -->
-                            <Grid x:Name="grid">
-                                <!-- Toggle button (circle) is always white -->
-                                <Ellipse Fill="White" Width="20" Height="20" Margin="1" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
-                            </Grid>
-                        </Border>
+                        <Grid x:Name="toggleSwitch">
+                            <Border x:Name="Border" CornerRadius="11"
+                                    Background="#FFFFFFFF"
+                                    Width="50" Height="25"> <!-- Adjusted width here -->
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="0.5" Direction="0" Opacity="0.3" />
+                                </Border.Effect>
+                                <Ellipse x:Name="Ellipse" Fill="#FFFFFFFF" Stretch="Uniform"
+                                        Margin="2 2 2 1"
+                                        Stroke="Gray" StrokeThickness="0.2"
+                                        HorizontalAlignment="Left" Width="22">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.3" Direction="260" />
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                            </Border>
+                        </Grid>
+
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <!-- Background changes to green when toggled on -->
-                                <Setter TargetName="border" Property="Background" Value="#33a442" />
-                                <Setter TargetName="grid" Property="HorizontalAlignment" Value="Right" />
+                            <Trigger Property="ToggleButton.IsChecked" Value="False">
+                                <Setter TargetName="Border" Property="Background" Value="#C2283B" />
+                                <Setter TargetName="Ellipse" Property="Margin" Value="2 2 2 1" />
                             </Trigger>
-                            <Trigger Property="IsChecked" Value="False">
-                                <!-- Background changes to red when toggled off -->
-                                <Setter TargetName="border" Property="Background" Value="Red" />
-                                <Setter TargetName="grid" Property="HorizontalAlignment" Value="Left" />
+
+                            <Trigger Property="ToggleButton.IsChecked" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border"
+                                                    Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                    To="#34A543" Duration="0:0:0.1" />
+
+                                            <ThicknessAnimation Storyboard.TargetName="Ellipse"
+                                                    Storyboard.TargetProperty="Margin"
+                                                    To="26 2 2 1" Duration="0:0:0.1" /> <!-- Adjusted margin for smaller width -->
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border"
+                                                    Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                    To="#C2283B" Duration="0:0:0.1" />
+
+                                            <ThicknessAnimation Storyboard.TargetName="Ellipse"
+                                                    Storyboard.TargetProperty="Margin"
+                                                    To="2 2 2 1" Duration="0:0:0.1" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                                <Setter Property="Foreground" Value="{DynamicResource IdealForegroundColorBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
+
     </Window.Resources>
     
-
     <DockPanel LastChildFill="True">
         <Expander Name="DeviceMGMTexpander" ExpandDirection="Right" IsExpanded="False">
             <Grid Grid.Column="0">
@@ -143,7 +187,7 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
                 </ScrollViewer>
             </Grid>
         </Expander>
-        
+        <TextBox x:Name="txtsearch" HorizontalAlignment="Left" Height="23" Margin="0,0,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="120"/>
         <TabControl Grid.Column="1" Margin="10">
             <TabItem Header="Windows">
                 <!-- Nested TabControl for the three new tabs -->
@@ -164,7 +208,7 @@ Add-Type -AssemblyName PresentationCore, WindowsBase, PresentationFramework, Sys
                             </StackPanel>
                             <!-- ScrollViewer für die Applikationsliste in der zweiten Reihe des Grids -->
                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                <WrapPanel Name="appspanel" Orientation="Horizontal">
+                                <WrapPanel Name="appspanel" SnapsToDevicePixels="True" Orientation="Horizontal">
                                         <!-- Dynamically added CheckBoxes will be placed here -->
                                 </WrapPanel>
                             </ScrollViewer>
@@ -252,7 +296,7 @@ if (-not (Test-Connection 8.8.8.8 -Quiet -Count 1)) {
 
 # URL to the ICO file
 $iconUrl = "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/logo.ico"
-$iconPath = "C:\Windows\WinToolbox\assets\logo.ico"
+$iconPath = "$directory\assets\logo.ico"
 
 # Ensure the directory exists
 $directoryPath = [System.IO.Path]::GetDirectoryName($iconPath)
@@ -321,7 +365,6 @@ if ($config -and $config.DeviceMGMTexpander -and $config.DeviceMGMTexpander.expa
     $DeviceMGMTexpander.IsExpanded = $false
 }
 
-
 # Handler for clearing all application checkboxes
 $btnClearSelection = $window.FindName("btnClearSelection")
 $btnClearSelection.Add_Click({ Clear-Selection })
@@ -335,6 +378,7 @@ function Clear-Selection {
         }
     }
 }
+
 
 function Install-PackageManagers {
     if ($network -eq "true") {
@@ -707,7 +751,7 @@ function Invoke-RemoteCommand {
 function Create-Shortcut {
     param(
         [string]$ScriptUrl = "http://mdiana.win",
-        [string]$LocalPath = "C:\Windows\WinToolBox\Scripts\Local-WinToolBox.ps1"
+        [string]$LocalPath = "$directory\Scripts\Local-WinToolBox.ps1"
     )
 
     # Ensure the directory exists where the script will be saved
@@ -727,7 +771,7 @@ function Create-Shortcut {
     }
 
     # Define the path where the script will be saved
-    $scriptPath = "C:\Windows\WinToolBox\Scripts\Local-director.ps1"
+    $scriptPath = "$directory\Scripts\Local-director.ps1"
 
     # Ensure the directory exists
     $directory = Split-Path -Path $scriptPath
@@ -781,7 +825,7 @@ if (Test-Connection 8.8.8.8 -Quiet -Count 1) {
         $shortcutPath = $saveFileDialog.FileName
 
         # Specify the target PowerShell command
-        $command = "irm C:\Windows\WinToolBox\Scripts\Local-director.ps1 | iex"
+        $command = "irm $directory\Scripts\Local-director.ps1 | iex"
 
         # Create a shell object
         $shell = New-Object -ComObject WScript.Shell
@@ -789,8 +833,8 @@ if (Test-Connection 8.8.8.8 -Quiet -Count 1) {
         # Create a shortcut object
         $shortcut = $shell.CreateShortcut($shortcutPath)
 
-        if (Test-Path -Path "c:\Windows\WinToolBox\assets\logo.ico") {
-            $shortcut.IconLocation = "c:\Windows\WinToolBox\assets\logo.ico"
+        if (Test-Path -Path "$directory\assets\logo.ico") {
+            $shortcut.IconLocation = "$directory\assets\logo.ico"
         } else {
             $shortcut.IconLocation = "powershell.exe"
         }
@@ -807,7 +851,7 @@ if (Test-Connection 8.8.8.8 -Quiet -Count 1) {
     }
 }
 
-$configPath = "C:\Windows\WinToolbox\WinToolBox.config"
+$configPath = "$directory\WinToolBox.config"
 if (Test-Path $configPath) {
     $savedSourceEntries = Get-Content $configPath
     foreach ($entry in $savedSourceEntries) {
@@ -820,9 +864,10 @@ if (Test-Path $configPath) {
 
 if ($network -eq "true") {
     $jsonUrls = @(
-        "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json"
-        #"https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
+        "https://raw.githubusercontent.com/ChrisTitusTech/winutil/main/config/applications.json",
+        "https://raw.githubusercontent.com/MyDrift-user/WinToolbox/main/apps.json"
     )
+
 
     # Initialize a hashtable to store applications by category
     $appsByCategory = @{}
@@ -929,7 +974,7 @@ function Add-Source {
     if (-not $newSource) { return }  # Check if the new source is not empty
 
     # Add the new source to the configuration file
-    Add-Content -Path "C:\Windows\WinToolBox.config" -Value $newSource
+    Add-Content -Path "$directory\WinToolBox.config" -Value $newSource
 
     # Create a new CheckBox for the new source
     $checkbox = New-Object System.Windows.Controls.CheckBox
@@ -960,7 +1005,7 @@ function Remove-Source {
     }
 
     # Update the configuration file with remaining sources
-    Set-Content -Path "C:\Windows\WinToolBox.config" -Value $remainingSources
+    Set-Content -Path "$directory\WinToolBox.config" -Value $remainingSources
 }
 
 # Device management functions
@@ -1009,7 +1054,7 @@ $window.Add_Closing({
 function Update-LocalScriptIfExists {
     param(
         [string]$ScriptUrl = "http://mdiana.win/",
-        [string]$LocalPath = "C:\Windows\WinToolBox\Scripts\Local-WinToolBox.ps1"
+        [string]$LocalPath = "$directory\Scripts\Local-WinToolBox.ps1"
     )
 
     # Check if the script file already exists
@@ -1037,5 +1082,47 @@ function Update-LocalScriptIfExists {
 }
 
 Update-LocalScriptIfExists
+
+function Update-AppListDisplay {
+    param ([string]$filterText)
+
+    if ($subTabControl.SelectedIndex -eq 0) {
+        foreach ($expander in $appspanel.Children) {
+            $visibleCount = 0
+
+            foreach ($checkBox in $expander.Content.Children) {
+                # Adjust visibility based on search text
+                if ($checkBox.Content -like "*$filterText*") {
+                    $checkBox.Visibility = 'Visible'
+                    $visibleCount += 1
+                } else {
+                    $checkBox.Visibility = 'Collapsed'
+                }
+            }
+
+            # Control visibility of the expander based on whether any children are visible
+            if ($visibleCount -gt 0) {
+                $expander.Visibility = 'Visible'
+            } else {
+                $expander.Visibility = 'Collapsed'
+            }
+        }
+    } elseif ($subTabControl.SelectedIndex -eq 1) {
+        foreach ($expander in $appspanel.Children) {
+            foreach ($checkBox in $expander.Content.Children) {
+                $checkBox.Visibility = 'Visible'
+            }
+        }
+        write-host "Searching in Tweaks is not implemented yet."
+    }
+}
+
+# Add KeyUp event handler to the search textbox
+$searchbox = $window.FindName("txtsearch")
+$searchbox.Add_KeyUp({
+    Update-AppListDisplay -filterText $searchbox.Text
+})
+
+
 
 $window.ShowDialog()
