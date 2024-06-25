@@ -1,21 +1,10 @@
 # WinToolbox
 
 This Project is not being maintained. It was used a test to learn about powershell, wpf, xaml and Package managers like WinGet.
+
 This utility is a Toolbox that should helps me every day. The Plan is to Download my everyday applications and tweak the most important settings on my windows machines fast & at one place.
 
-## Launch Command (not working rn)
-
-#### Simple way
-
-```
-irm mdiana.win | iex
-```
-or: 
-```
-iwr -useb mdiana.win | iex
-```
-
-if for some reason the website is not accessible, use the following command:
+## Launch Command (not working any)
 
 ```
 irm https://raw.githubusercontent.com/mydrift-user/wintoolbox/main/manager.ps1 | iex
