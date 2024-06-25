@@ -1,5 +1,6 @@
 # WinToolbox
 
+This Project is not being maintained. It was used a test to learn about powershell, wpf, xaml and Package managers like WinGet.
 This utility is a Toolbox that should helps me every day. The Plan is to Download my everyday applications and tweak the most important settings on my windows machines fast & at one place.
 
 ## Launch Command (not working rn)
