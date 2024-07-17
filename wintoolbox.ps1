@@ -4,6 +4,9 @@
 ###                                                                                                          ###
 ################################################################################################################
 
+# Define the version of the script based on the current date
+$scriptVersion = (Get-Date).ToString("yyyyMMdd")
+
 <#
 .NOTES
     Author         : MyDrift @mydrift-user
@@ -53,6 +56,7 @@ MMMMMMMM               MMMMMMMM    DDDDDDDDDDDDDD
 =====Powershell Toolbox=====
 =======Managing Device======
 
+Version: $scriptVersion
 
 "
 
